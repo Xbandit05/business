@@ -1,0 +1,6 @@
+{
+  "name": "AgriBridge Rwanda",
+  "description": "Agricultural technology platform connecting smallholder farmers with buyers, plots & crop tracking, produce marketplace, and community agent support in Nyagatare, Rwanda.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
