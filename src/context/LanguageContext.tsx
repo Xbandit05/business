@@ -1,12 +1,27 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { Language } from '../types/index.ts';
+import {
+  KinyarwandaAudio,
+  KinyarwandaSpeaker,
+  AudioPlaybackState,
+} from '../utils/audioPlayer.ts';
 
 interface LanguageContextType {
   language: Language;
   setLanguage: (lang: Language) => void;
   t: (key: string) => string;
-  speakKinyarwandaText: (text: string) => void;
+  speakKinyarwandaText: (text: string, identifier?: string) => void;
   isSpeaking: boolean;
+  audioState: AudioPlaybackState;
+  speaker: KinyarwandaSpeaker;
+  setSpeaker: (speaker: KinyarwandaSpeaker) => void;
+  audioSpeed: number;
+  setAudioSpeed: (speed: number) => void;
+  activeAudioId: string | null;
+  audioProgress: { current: number; duration: number };
+  pauseAudio: () => void;
+  resumeAudio: () => void;
+  stopAudio: () => void;
 }
 
 const DICTIONARY: Record<Language, Record<string, string>> = {
@@ -312,46 +327,92 @@ export const LanguageProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     return (saved === 'rw' || saved === 'en') ? saved : 'en';
   });
 
-  const [isSpeaking, setIsSpeaking] = useState(false);
+  const [audioState, setAudioState] = useState<AudioPlaybackState>(KinyarwandaAudio.getState());
+  const [activeAudioId, setActiveAudioId] = useState<string | null>(KinyarwandaAudio.getActiveIdentifier());
+  const [speaker, setSpeakerState] = useState<KinyarwandaSpeaker>(KinyarwandaAudio.getSpeaker());
+  const [audioSpeed, setAudioSpeedState] = useState<number>(KinyarwandaAudio.getSpeed());
+  const [audioProgress, setAudioProgress] = useState<{ current: number; duration: number }>({
+    current: 0,
+    duration: 0,
+  });
+
+  useEffect(() => {
+    const unsubscribe = KinyarwandaAudio.subscribe({
+      onStateChange: (newState) => {
+        setAudioState(newState);
+        setActiveAudioId(KinyarwandaAudio.getActiveIdentifier());
+      },
+      onTimeUpdate: (current, duration) => {
+        setAudioProgress({ current, duration });
+      },
+      onError: (err) => {
+        console.warn('Audio playback notice:', err);
+      },
+    });
+
+    return () => {
+      unsubscribe();
+      KinyarwandaAudio.stop();
+    };
+  }, []);
 
   const setLanguage = (lang: Language) => {
     setLanguageState(lang);
     localStorage.setItem('agribridge_lang', lang);
   };
 
+  const setSpeaker = (spk: KinyarwandaSpeaker) => {
+    setSpeakerState(spk);
+    KinyarwandaAudio.setSpeaker(spk);
+  };
+
+  const setAudioSpeed = (speed: number) => {
+    setAudioSpeedState(speed);
+    KinyarwandaAudio.setSpeed(speed);
+  };
+
   const t = (key: string): string => {
     return DICTIONARY[language][key] || DICTIONARY['en'][key] || key;
   };
 
-  const speakKinyarwandaText = (text: string) => {
-    if (!('speechSynthesis' in window)) {
-      return;
-    }
-    window.speechSynthesis.cancel();
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.rate = 0.9;
-    utterance.pitch = 1.0;
-    const voices = window.speechSynthesis.getVoices();
-    const voice = voices.find(v => v.lang.startsWith('rw') || v.lang.startsWith('sw') || v.lang.startsWith('fr') || v.lang.startsWith('en'));
-    if (voice) {
-      utterance.voice = voice;
-    }
-    utterance.onstart = () => setIsSpeaking(true);
-    utterance.onend = () => setIsSpeaking(false);
-    utterance.onerror = () => setIsSpeaking(false);
-    window.speechSynthesis.speak(utterance);
+  const speakKinyarwandaText = (text: string, identifier: string = 'generic_audio') => {
+    KinyarwandaAudio.play(text, identifier);
   };
 
-  useEffect(() => {
-    return () => {
-      if ('speechSynthesis' in window) {
-        window.speechSynthesis.cancel();
-      }
-    };
-  }, []);
+  const pauseAudio = () => {
+    KinyarwandaAudio.pause();
+  };
+
+  const resumeAudio = () => {
+    KinyarwandaAudio.resume();
+  };
+
+  const stopAudio = () => {
+    KinyarwandaAudio.stop();
+  };
+
+  const isSpeaking = audioState === 'playing' || audioState === 'loading';
 
   return (
-    <LanguageContext.Provider value={{ language, setLanguage, t, speakKinyarwandaText, isSpeaking }}>
+    <LanguageContext.Provider
+      value={{
+        language,
+        setLanguage,
+        t,
+        speakKinyarwandaText,
+        isSpeaking,
+        audioState,
+        speaker,
+        setSpeaker,
+        audioSpeed,
+        setAudioSpeed,
+        activeAudioId,
+        audioProgress,
+        pauseAudio,
+        resumeAudio,
+        stopAudio,
+      }}
+    >
       {children}
     </LanguageContext.Provider>
   );

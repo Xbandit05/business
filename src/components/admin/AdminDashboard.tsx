@@ -18,6 +18,7 @@ import {
 interface CoOpItem {
   id: string;
   name: string;
+  district: string;
   sector: string;
   members: number;
   primaryCrop: string;
@@ -28,10 +29,12 @@ export const AdminDashboard: React.FC = () => {
   const { t } = useLanguage();
   const { orders, listings, benchmarks, showToast } = useApp();
 
+  const [selectedAdminDistrict, setSelectedAdminDistrict] = useState<string>('all');
   const [cooperatives, setCooperatives] = useState<CoOpItem[]>([
     {
       id: 'coop_1',
       name: 'COOPAMA Mimuri Maize Union',
+      district: 'Nyagatare',
       sector: 'Mimuri',
       members: 342,
       primaryCrop: 'Maize & Beans',
@@ -40,6 +43,7 @@ export const AdminDashboard: React.FC = () => {
     {
       id: 'coop_2',
       name: 'CORIMU Rice Farmers Cooperative',
+      district: 'Nyagatare',
       sector: 'Rukomo',
       members: 512,
       primaryCrop: 'Basmati Paddy Rice',
@@ -48,6 +52,7 @@ export const AdminDashboard: React.FC = () => {
     {
       id: 'coop_3',
       name: 'Karangazi Dairy & Grains Federation',
+      district: 'Nyagatare',
       sector: 'Karangazi',
       members: 280,
       primaryCrop: 'Dairy Fodder & Maize',
@@ -55,19 +60,39 @@ export const AdminDashboard: React.FC = () => {
     },
     {
       id: 'coop_4',
-      name: 'Katabagemu Smallholder Growers Association',
-      sector: 'Katabagemu',
-      members: 195,
-      primaryCrop: 'Cassava & Sorghum',
-      isVerified: false,
+      name: 'COOPAC Kinigi Potato Seed Producers',
+      district: 'Musanze',
+      sector: 'Kinigi',
+      members: 410,
+      primaryCrop: 'Certified Irish Potatoes (Kinigi)',
+      isVerified: true,
     },
     {
       id: 'coop_5',
-      name: 'Rwempasha Border Farmers Group',
-      sector: 'Rwempasha',
-      members: 140,
-      primaryCrop: 'Red Kidney Beans',
-      isVerified: false,
+      name: 'Mayange Cassava Millennium Processing Co-op',
+      district: 'Bugesera',
+      sector: 'Mayange',
+      members: 225,
+      primaryCrop: 'Cassava Flour (NAROCAS 1)',
+      isVerified: true,
+    },
+    {
+      id: 'coop_6',
+      name: 'Nasho Solar Center Pivot Irrigation Co-op',
+      district: 'Kirehe',
+      sector: 'Nasho',
+      members: 310,
+      primaryCrop: 'Irrigated Grain Maize & Soya',
+      isVerified: true,
+    },
+    {
+      id: 'coop_7',
+      name: 'Abahuzamugambi Maraba Coffee Cooperative',
+      district: 'Huye',
+      sector: 'Maraba',
+      members: 460,
+      primaryCrop: 'Specialty Arabica Bourbon Coffee',
+      isVerified: true,
     },
   ]);
 
@@ -219,18 +244,36 @@ export const AdminDashboard: React.FC = () => {
 
       {/* Cooperative Verification Desk */}
       <div className="p-6 bg-white dark:bg-stone-900 rounded-2xl border border-stone-200 dark:border-stone-800 shadow-2xs space-y-4">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
           <div className="flex items-center gap-2">
             <Building className="w-5 h-5 text-emerald-700" />
             <h2 className="text-base font-bold text-stone-900 dark:text-stone-100">
               Cooperative Verification & Licensing Desk
             </h2>
           </div>
-          <span className="text-xs text-stone-500">Nyagatare District Registry</span>
+          
+          <div className="flex items-center gap-1.5 overflow-x-auto text-xs">
+            {['all', 'Nyagatare', 'Musanze', 'Bugesera', 'Kirehe', 'Huye'].map((dist) => (
+              <button
+                key={dist}
+                type="button"
+                onClick={() => setSelectedAdminDistrict(dist)}
+                className={`px-2.5 py-1 rounded-md text-[11px] font-semibold transition-all shrink-0 border ${
+                  selectedAdminDistrict === dist
+                    ? 'bg-emerald-800 text-white border-emerald-800 shadow-2xs'
+                    : 'bg-white dark:bg-stone-800 border-stone-200 dark:border-stone-700 text-stone-600 dark:text-stone-300'
+                }`}
+              >
+                {dist === 'all' ? 'All Rwanda' : dist}
+              </button>
+            ))}
+          </div>
         </div>
 
         <div className="space-y-3">
-          {cooperatives.map((coop) => (
+          {cooperatives
+            .filter((c) => selectedAdminDistrict === 'all' || c.district === selectedAdminDistrict)
+            .map((coop) => (
             <div
               key={coop.id}
               className="p-4 rounded-xl bg-stone-50 dark:bg-stone-800/60 border border-stone-200 dark:border-stone-700/60 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs"
@@ -253,6 +296,7 @@ export const AdminDashboard: React.FC = () => {
                 </div>
 
                 <div className="text-stone-500 dark:text-stone-400 mt-0.5">
+                  District: <strong className="text-emerald-800 dark:text-emerald-400 font-semibold">{coop.district}</strong> ·{' '}
                   Sector: <strong className="text-stone-700 dark:text-stone-300">{coop.sector}</strong> ·{' '}
                   {coop.members} registered smallholders · Focus: {coop.primaryCrop}
                 </div>

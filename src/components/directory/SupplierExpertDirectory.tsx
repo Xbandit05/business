@@ -24,6 +24,7 @@ export const SupplierExpertDirectory: React.FC = () => {
 
   const [activeTab, setActiveTab] = useState<'suppliers' | 'experts' | 'inquiries'>('suppliers');
   const [selectedExpert, setSelectedExpert] = useState<AgronomistExpert | null>(null);
+  const [selectedDistrict, setSelectedDistrict] = useState<string>('all');
 
   // Inquiry form states
   const [inquiryCrop, setInquiryCrop] = useState('Maize (PAN 53)');
@@ -102,10 +103,35 @@ export const SupplierExpertDirectory: React.FC = () => {
         </div>
       </div>
 
+      {/* District Filter Bar */}
+      {activeTab !== 'inquiries' && (
+        <div className="flex items-center gap-2 overflow-x-auto pb-1 text-xs">
+          <span className="font-bold text-stone-500 uppercase tracking-wider text-[11px] shrink-0">
+            District:
+          </span>
+          {['all', 'Nyagatare', 'Musanze', 'Bugesera'].map((dist) => (
+            <button
+              key={dist}
+              type="button"
+              onClick={() => setSelectedDistrict(dist)}
+              className={`px-3 py-1.5 rounded-lg font-semibold transition-all shrink-0 border ${
+                selectedDistrict === dist
+                  ? 'bg-emerald-800 text-white border-emerald-800 shadow-2xs'
+                  : 'bg-white dark:bg-stone-900 border-stone-300 dark:border-stone-700 text-stone-700 dark:text-stone-300 hover:bg-stone-50'
+              }`}
+            >
+              {dist === 'all' ? 'All Rwanda Districts' : dist}
+            </button>
+          ))}
+        </div>
+      )}
+
       {/* SUPPLIERS TAB */}
       {activeTab === 'suppliers' && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {suppliers.map((sup) => (
+          {suppliers
+            .filter((s) => selectedDistrict === 'all' || (s.district || 'Nyagatare') === selectedDistrict)
+            .map((sup) => (
             <div
               key={sup.id}
               className="p-5 bg-white dark:bg-stone-900 rounded-xl border border-stone-200 dark:border-stone-800 shadow-2xs flex flex-col justify-between space-y-4"
@@ -118,7 +144,9 @@ export const SupplierExpertDirectory: React.FC = () => {
                     </h3>
                     <div className="flex items-center gap-1.5 text-xs text-stone-500 mt-0.5">
                       <MapPin className="w-3.5 h-3.5 text-emerald-700 shrink-0" />
-                      <span>{sup.sector} Sector</span>
+                      <span className="font-semibold text-stone-700 dark:text-stone-300">
+                        {sup.district ? `${sup.district} · ${sup.sector}` : `${sup.sector} Sector`}
+                      </span>
                       <span>·</span>
                       <span className="truncate">{sup.locationDetails}</span>
                     </div>
@@ -176,7 +204,9 @@ export const SupplierExpertDirectory: React.FC = () => {
       {/* EXPERTS TAB */}
       {activeTab === 'experts' && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {experts.map((exp) => (
+          {experts
+            .filter((e) => selectedDistrict === 'all' || (e.district || 'Nyagatare') === selectedDistrict)
+            .map((exp) => (
             <div
               key={exp.id}
               className="p-5 bg-white dark:bg-stone-900 rounded-xl border border-stone-200 dark:border-stone-800 shadow-2xs flex flex-col justify-between space-y-4"
@@ -193,8 +223,8 @@ export const SupplierExpertDirectory: React.FC = () => {
                     <div className="text-[11px] text-stone-500">{exp.affiliation}</div>
                   </div>
 
-                  <span className="text-[10px] font-semibold px-2 py-0.5 rounded bg-stone-100 dark:bg-stone-800 text-stone-700 dark:text-stone-300">
-                    {exp.sector}
+                  <span className="text-[10px] font-semibold px-2 py-0.5 rounded bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300">
+                    {exp.district ? `${exp.district} · ${exp.sector}` : exp.sector}
                   </span>
                 </div>
 

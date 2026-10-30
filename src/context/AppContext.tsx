@@ -1,7 +1,9 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import {
   UserRole,
+  UserCategory,
   UserProfile,
+  SavedUserCredentials,
   Farm,
   Plot,
   CropCycle,
@@ -48,7 +50,24 @@ interface AppContextType {
   currentUser: UserProfile;
   role: UserRole;
   setRole: (role: UserRole) => void;
-  login: (name: string, phone: string, role: UserRole, sector?: NyagatareSector) => void;
+  login: (
+    name: string,
+    phone: string,
+    role: UserRole,
+    district?: string,
+    sector?: string,
+    extra?: {
+      email?: string;
+      category?: UserCategory;
+      nicheSpecialty?: string;
+      businessOrFarmName?: string;
+      tradeVolumeScale?: string;
+      saveCredentials?: boolean;
+    }
+  ) => void;
+  saveUserCredentials: (profile: Partial<UserProfile> & { category: UserCategory }) => void;
+  savedAccounts: SavedUserCredentials[];
+  deleteSavedAccount: (id: string) => void;
   logout: () => void;
   loginAsJudge: (role: UserRole) => void;
   isAuthModalOpen: boolean;
@@ -108,6 +127,7 @@ const AppContext = createContext<AppContextType | undefined>(undefined);
 
 const STORAGE_KEYS = {
   CURRENT_USER: 'agribridge_current_user',
+  SAVED_ACCOUNTS: 'agribridge_saved_accounts',
   FILTER: 'agribridge_data_filter',
   USER_FARMS: 'agribridge_user_farms',
   USER_PLOTS: 'agribridge_user_plots',
@@ -133,6 +153,20 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return DEMO_USERS[0];
     }
   });
+
+  // Saved credentials on device for quick reconnection and personalization
+  const [savedAccounts, setSavedAccounts] = useState<SavedUserCredentials[]>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEYS.SAVED_ACCOUNTS);
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEYS.SAVED_ACCOUNTS, JSON.stringify(savedAccounts));
+  }, [savedAccounts]);
 
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
 
@@ -332,20 +366,147 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     showToast('info', `Active Perspective: ${newRole.toUpperCase()}`);
   };
 
-  const login = (name: string, phone: string, newRole: UserRole, sector: NyagatareSector = 'Nyagatare') => {
+  const login = (
+    name: string,
+    phone: string,
+    newRole: UserRole,
+    district: string = 'Nyagatare',
+    sector: string = 'Nyagatare',
+    extra?: {
+      email?: string;
+      category?: UserCategory;
+      nicheSpecialty?: string;
+      businessOrFarmName?: string;
+      tradeVolumeScale?: string;
+      saveCredentials?: boolean;
+    }
+  ) => {
+    const derivedCategory: UserCategory =
+      extra?.category ||
+      (newRole === 'farmer' ? 'seller' : (newRole as UserCategory));
+
     const newUser: UserProfile = {
       id: `usr_${Date.now()}`,
       fullName: name,
       phoneNumber: phone,
+      email: extra?.email,
       role: newRole,
-      district: 'Nyagatare',
+      category: derivedCategory,
+      nicheSpecialty: extra?.nicheSpecialty,
+      businessOrFarmName: extra?.businessOrFarmName,
+      tradeVolumeScale: extra?.tradeVolumeScale,
+      district,
       sector,
       isVerified: true,
       isDemo: false,
+      savedCredentials: extra?.saveCredentials ?? true,
+      savedAt: new Date().toISOString(),
     };
+
     setCurrentUser(newUser);
+
+    if (extra?.saveCredentials !== false) {
+      const credentialRecord: SavedUserCredentials = {
+        id: newUser.id,
+        fullName: newUser.fullName,
+        email: newUser.email,
+        phoneNumber: newUser.phoneNumber,
+        role: newUser.role,
+        category: derivedCategory,
+        nicheSpecialty: newUser.nicheSpecialty,
+        businessOrFarmName: newUser.businessOrFarmName,
+        tradeVolumeScale: newUser.tradeVolumeScale,
+        district: newUser.district,
+        sector: newUser.sector,
+        cooperativeName: newUser.cooperativeName,
+        savedAt: newUser.savedAt || new Date().toISOString(),
+      };
+      setSavedAccounts((prev) => {
+        const filtered = prev.filter(
+          (a) => a.id !== credentialRecord.id && a.phoneNumber !== credentialRecord.phoneNumber
+        );
+        return [credentialRecord, ...filtered];
+      });
+    }
+
     setIsAuthModalOpen(false);
-    showToast('success', `Signed in as ${newUser.fullName}`, `Role: ${newUser.role}`);
+    showToast('success', `Signed in as ${newUser.fullName}`, `Role: ${newUser.role} · ${district}`);
+  };
+
+  const saveUserCredentials = (profile: Partial<UserProfile> & { category: UserCategory }) => {
+    const role: UserRole =
+      profile.role ||
+      (profile.category === 'seller'
+        ? 'farmer'
+        : profile.category === 'buyer'
+        ? 'buyer'
+        : profile.category === 'supplier'
+        ? 'supplier'
+        : profile.category === 'agent'
+        ? 'agent'
+        : profile.category === 'admin'
+        ? 'admin'
+        : 'farmer');
+
+    const updatedUser: UserProfile = {
+      ...currentUser,
+      ...profile,
+      id: profile.id || currentUser.id || `usr_${Date.now()}`,
+      fullName: profile.fullName || currentUser.fullName || 'AgriBridge Member',
+      phoneNumber: profile.phoneNumber || currentUser.phoneNumber || '',
+      email: profile.email || currentUser.email || '',
+      role,
+      category: profile.category,
+      nicheSpecialty: profile.nicheSpecialty || currentUser.nicheSpecialty,
+      businessOrFarmName: profile.businessOrFarmName || currentUser.businessOrFarmName,
+      tradeVolumeScale: profile.tradeVolumeScale || currentUser.tradeVolumeScale,
+      district: profile.district || currentUser.district || 'Nyagatare',
+      sector: profile.sector || currentUser.sector || 'Mimuri',
+      isVerified: true,
+      isDemo: false,
+      savedCredentials: true,
+      savedAt: new Date().toISOString(),
+    };
+
+    setCurrentUser(updatedUser);
+
+    const credentialRecord: SavedUserCredentials = {
+      id: updatedUser.id,
+      fullName: updatedUser.fullName,
+      email: updatedUser.email,
+      phoneNumber: updatedUser.phoneNumber,
+      role: updatedUser.role,
+      category: updatedUser.category || 'seller',
+      nicheSpecialty: updatedUser.nicheSpecialty,
+      businessOrFarmName: updatedUser.businessOrFarmName,
+      tradeVolumeScale: updatedUser.tradeVolumeScale,
+      district: updatedUser.district,
+      sector: updatedUser.sector,
+      cooperativeName: updatedUser.cooperativeName,
+      savedAt: updatedUser.savedAt || new Date().toISOString(),
+    };
+
+    setSavedAccounts((prev) => {
+      const filtered = prev.filter(
+        (a) =>
+          a.id !== credentialRecord.id &&
+          (credentialRecord.phoneNumber ? a.phoneNumber !== credentialRecord.phoneNumber : true) &&
+          (credentialRecord.email && a.email ? a.email !== credentialRecord.email : true)
+      );
+      return [credentialRecord, ...filtered];
+    });
+
+    setIsAuthModalOpen(false);
+    showToast(
+      'success',
+      'Credentials & Niche Saved',
+      `Welcome ${updatedUser.fullName} (${(updatedUser.category || updatedUser.role).toUpperCase()})`
+    );
+  };
+
+  const deleteSavedAccount = (id: string) => {
+    setSavedAccounts((prev) => prev.filter((acc) => acc.id !== id));
+    showToast('info', 'Saved Account Removed', 'Account credentials cleared from this browser.');
   };
 
   const logout = () => {
@@ -712,6 +873,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         login,
         logout,
         loginAsJudge,
+        savedAccounts,
+        saveUserCredentials,
+        deleteSavedAccount,
         isAuthModalOpen,
         setIsAuthModalOpen,
         dataFilter,

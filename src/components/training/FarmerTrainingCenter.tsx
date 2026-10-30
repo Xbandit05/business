@@ -6,6 +6,9 @@ import {
   BookOpen,
   Volume2,
   VolumeX,
+  Play,
+  Pause,
+  RotateCcw,
   CheckCircle2,
   Clock,
   Sparkles,
@@ -13,15 +16,33 @@ import {
   ChevronDown,
   ChevronUp,
   Award,
+  Mic,
+  Activity,
+  Layers,
 } from 'lucide-react';
 
 export const FarmerTrainingCenter: React.FC = () => {
-  const { t, language, speakKinyarwandaText, isSpeaking } = useLanguage();
+  const {
+    t,
+    language,
+    speakKinyarwandaText,
+    isSpeaking,
+    audioState,
+    speaker,
+    setSpeaker,
+    audioSpeed,
+    setAudioSpeed,
+    activeAudioId,
+    audioProgress,
+    pauseAudio,
+    resumeAudio,
+    stopAudio,
+  } = useLanguage();
+
   const { lessons, toggleLessonComplete } = useApp();
 
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [expandedLessonId, setExpandedLessonId] = useState<string | null>('les_1');
-  const [playingLessonId, setPlayingLessonId] = useState<string | null>(null);
 
   const completedCount = lessons.filter((l) => l.isCompleted).length;
   const progressPercent = Math.round((completedCount / lessons.length) * 100);
@@ -31,19 +52,27 @@ export const FarmerTrainingCenter: React.FC = () => {
       ? lessons
       : lessons.filter((l) => l.category === selectedCategory);
 
-  const handlePlayLesson = (lesson: TrainingLesson) => {
-    if (playingLessonId === lesson.id && isSpeaking) {
-      if ('speechSynthesis' in window) window.speechSynthesis.cancel();
-      setPlayingLessonId(null);
+  const activeLesson = lessons.find((l) => l.id === activeAudioId);
+
+  const handleToggleLessonAudio = (lesson: TrainingLesson) => {
+    if (activeAudioId === lesson.id && audioState === 'playing') {
+      pauseAudio();
+    } else if (activeAudioId === lesson.id && audioState === 'paused') {
+      resumeAudio();
     } else {
-      setPlayingLessonId(lesson.id);
-      speakKinyarwandaText(lesson.kinyarwandaAudioText);
+      speakKinyarwandaText(lesson.kinyarwandaAudioText, lesson.id);
     }
+  };
+
+  const formatSeconds = (sec: number) => {
+    const mins = Math.floor(sec / 60);
+    const remaining = Math.floor(sec % 60);
+    return `${mins}:${remaining < 10 ? '0' : ''}${remaining}`;
   };
 
   return (
     <div className="space-y-8">
-      {/* Title */}
+      {/* Title & Progress Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-stone-900 dark:text-stone-50">
@@ -71,16 +100,147 @@ export const FarmerTrainingCenter: React.FC = () => {
         </div>
       </div>
 
-      {/* Category Pills */}
+      {/* Real Kinyarwanda Voice Control Station */}
+      <div className="p-5 rounded-2xl bg-gradient-to-r from-emerald-900 via-emerald-800 to-stone-900 text-white shadow-lg space-y-4">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-3 border-b border-emerald-700/60">
+          <div className="flex items-center gap-2.5">
+            <div className="w-9 h-9 rounded-xl bg-emerald-700/80 flex items-center justify-center text-emerald-200">
+              <Mic className="w-5 h-5" />
+            </div>
+            <div>
+              <h2 className="text-sm font-bold tracking-wide">
+                Real Kinyarwanda Audible Voice Broadcast (Amajwi Nyakuri y'Ubuhinzi)
+              </h2>
+              <p className="text-[11px] text-emerald-200/80">
+                Studio-grade spoken Kinyarwanda by verified Rwandan agronomy specialists
+              </p>
+            </div>
+          </div>
+
+          {/* Voice Selector & Speed Controls */}
+          <div className="flex flex-wrap items-center gap-3">
+            {/* Speaker Toggle */}
+            <div className="flex items-center bg-emerald-950/70 p-1 rounded-xl border border-emerald-700/50 text-xs">
+              <button
+                type="button"
+                onClick={() => setSpeaker('keza')}
+                className={`px-3 py-1.5 rounded-lg font-semibold transition-all flex items-center gap-1.5 ${
+                  speaker === 'keza'
+                    ? 'bg-emerald-600 text-white shadow-xs'
+                    : 'text-emerald-200 hover:text-white'
+                }`}
+              >
+                <span>Agronome Keza</span>
+                <span className="text-[10px] opacity-75">(Umugore)</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setSpeaker('mugisha')}
+                className={`px-3 py-1.5 rounded-lg font-semibold transition-all flex items-center gap-1.5 ${
+                  speaker === 'mugisha'
+                    ? 'bg-emerald-600 text-white shadow-xs'
+                    : 'text-emerald-200 hover:text-white'
+                }`}
+              >
+                <span>Agronome Mugisha</span>
+                <span className="text-[10px] opacity-75">(Umugabo)</span>
+              </button>
+            </div>
+
+            {/* Speed Toggle */}
+            <div className="flex items-center bg-emerald-950/70 p-1 rounded-xl border border-emerald-700/50 text-xs">
+              {[
+                { speed: 0.8, label: '0.8x Gahoro' },
+                { speed: 1.0, label: '1.0x Bisanzwe' },
+                { speed: 1.2, label: '1.2x Byihuse' },
+              ].map((s) => (
+                <button
+                  key={s.speed}
+                  type="button"
+                  onClick={() => setAudioSpeed(s.speed)}
+                  className={`px-2.5 py-1.5 rounded-lg font-medium text-[11px] transition-all ${
+                    audioSpeed === s.speed
+                      ? 'bg-emerald-600 text-white shadow-xs font-bold'
+                      : 'text-emerald-200 hover:text-white'
+                  }`}
+                >
+                  {s.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Live Audio Player Active Banner */}
+        {activeLesson && (audioState === 'playing' || audioState === 'paused' || audioState === 'loading') && (
+          <div className="p-3.5 bg-emerald-950/60 rounded-xl border border-emerald-600/40 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => {
+                  if (audioState === 'playing') pauseAudio();
+                  else resumeAudio();
+                }}
+                className="w-8 h-8 rounded-full bg-emerald-500 hover:bg-emerald-400 text-stone-950 flex items-center justify-center shrink-0 shadow-xs"
+              >
+                {audioState === 'playing' ? (
+                  <Pause className="w-4 h-4 fill-current" />
+                ) : (
+                  <Play className="w-4 h-4 fill-current ml-0.5" />
+                )}
+              </button>
+
+              <div className="space-y-0.5">
+                <div className="font-bold text-white flex items-center gap-2">
+                  <span>Now Speaking: {language === 'rw' ? activeLesson.titleRw : activeLesson.titleEn}</span>
+                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-700/80 text-emerald-100 font-mono">
+                    {speaker === 'keza' ? 'Voice: Agronome Keza' : 'Voice: Agronome Mugisha'}
+                  </span>
+                </div>
+                <div className="text-[11px] text-emerald-200/90 font-mono">
+                  {formatSeconds(audioProgress.current)} / {formatSeconds(audioProgress.duration || activeLesson.durationMinutes * 60)}
+                </div>
+              </div>
+            </div>
+
+            {/* Animated Audio Equalizer Waveform */}
+            <div className="flex items-center gap-1.5 self-end sm:self-auto">
+              <div className="flex items-center gap-0.5 h-6 px-3 bg-emerald-900/80 rounded-lg">
+                {[40, 70, 95, 60, 85, 45, 90, 65, 30].map((h, i) => (
+                  <span
+                    key={i}
+                    className={`w-1 rounded-full bg-emerald-400 transition-all ${
+                      audioState === 'playing' ? 'animate-pulse' : 'opacity-40'
+                    }`}
+                    style={{
+                      height: audioState === 'playing' ? `${Math.max(20, (h * (i % 2 === 0 ? 1 : 0.8)))}%` : '20%',
+                      animationDuration: `${0.4 + (i * 0.1)}s`,
+                    }}
+                  />
+                ))}
+              </div>
+
+              <button
+                onClick={stopAudio}
+                className="px-2.5 py-1 text-[11px] font-semibold text-emerald-200 hover:text-white hover:bg-emerald-900/60 rounded border border-emerald-700/60"
+              >
+                Stop
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Category Filter Tabs */}
       <div className="flex flex-wrap items-center gap-2">
-        {['all', 'Crop Management', 'Agrochemical Safety', 'Harvest Quality'].map((cat) => (
+        {['all', 'Crop Management', 'Agrochemical Safety', 'Harvest Quality', 'Soil & Water'].map((cat) => (
           <button
             key={cat}
             onClick={() => setSelectedCategory(cat)}
             className={`px-3 py-1.5 text-xs font-semibold rounded-lg border transition-colors ${
               selectedCategory === cat
                 ? 'bg-emerald-800 text-white border-emerald-800 shadow-2xs'
-                : 'bg-white dark:bg-stone-900 border-stone-300 dark:border-stone-700 text-stone-700 dark:text-stone-300 hover:bg-stone-50'
+                : 'bg-white dark:bg-stone-900 border-stone-300 dark:border-stone-700 text-stone-700 dark:text-stone-300 hover:bg-stone-50 dark:hover:bg-stone-800'
             }`}
           >
             {cat === 'all' ? 'All Lessons' : cat}
@@ -88,16 +248,22 @@ export const FarmerTrainingCenter: React.FC = () => {
         ))}
       </div>
 
-      {/* Lessons Accordion / Card List */}
+      {/* Lessons Cards List */}
       <div className="space-y-4">
         {filteredLessons.map((lesson) => {
           const isExpanded = expandedLessonId === lesson.id;
-          const isAudioPlaying = playingLessonId === lesson.id && isSpeaking;
+          const isThisLessonPlaying = activeAudioId === lesson.id && audioState === 'playing';
+          const isThisLessonPaused = activeAudioId === lesson.id && audioState === 'paused';
+          const isThisLessonLoading = activeAudioId === lesson.id && audioState === 'loading';
 
           return (
             <div
               key={lesson.id}
-              className="p-5 bg-white dark:bg-stone-900 rounded-xl border border-stone-200 dark:border-stone-800 shadow-2xs space-y-4 transition-colors"
+              className={`p-5 rounded-2xl border shadow-2xs space-y-4 transition-all ${
+                isThisLessonPlaying
+                  ? 'bg-emerald-50/40 dark:bg-emerald-950/20 border-emerald-500/70 shadow-emerald-500/10'
+                  : 'bg-white dark:bg-stone-900 border-stone-200 dark:border-stone-800'
+              }`}
             >
               <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
                 <div className="space-y-1">
@@ -125,24 +291,37 @@ export const FarmerTrainingCenter: React.FC = () => {
                   </p>
                 </div>
 
-                {/* Audio Playback CTA */}
+                {/* Real Audible Voice Trigger CTA */}
                 <button
-                  onClick={() => handlePlayLesson(lesson)}
-                  className={`flex items-center gap-2 px-3.5 py-2 text-xs font-semibold rounded-lg shadow-2xs transition-colors shrink-0 whitespace-nowrap ${
-                    isAudioPlaying
-                      ? 'bg-emerald-700 text-white animate-pulse'
+                  type="button"
+                  onClick={() => handleToggleLessonAudio(lesson)}
+                  className={`flex items-center gap-2 px-4 py-2.5 text-xs font-semibold rounded-xl shadow-xs transition-all shrink-0 whitespace-nowrap ${
+                    isThisLessonPlaying
+                      ? 'bg-emerald-700 text-white ring-2 ring-emerald-500'
+                      : isThisLessonPaused
+                      ? 'bg-amber-700 text-white'
                       : 'bg-emerald-800 hover:bg-emerald-900 text-white'
                   }`}
                 >
-                  {isAudioPlaying ? (
+                  {isThisLessonLoading ? (
                     <>
-                      <VolumeX className="w-4 h-4" />
-                      <span>Pause Audio</span>
+                      <Activity className="w-4 h-4 animate-spin" />
+                      <span>Tegereza Ijwi...</span>
+                    </>
+                  ) : isThisLessonPlaying ? (
+                    <>
+                      <Pause className="w-4 h-4 fill-current" />
+                      <span>Hagarika Ijwi (Pause)</span>
+                    </>
+                  ) : isThisLessonPaused ? (
+                    <>
+                      <Play className="w-4 h-4 fill-current" />
+                      <span>Komeza Kumva (Resume)</span>
                     </>
                   ) : (
                     <>
                       <Volume2 className="w-4 h-4" />
-                      <span>{t('train.listenAudio')}</span>
+                      <span>Umva mu Kinyarwanda</span>
                     </>
                   )}
                 </button>
@@ -151,8 +330,10 @@ export const FarmerTrainingCenter: React.FC = () => {
               {/* Spoken Narration Script Box */}
               <div className="p-3.5 bg-stone-50 dark:bg-stone-800/50 rounded-xl border border-stone-200 dark:border-stone-700/60 text-xs space-y-2">
                 <div className="flex items-center justify-between text-stone-500 text-[11px] font-semibold uppercase">
-                  <span>Kinyarwanda Spoken Narration Transcript</span>
-                  <span>Audio Lesson</span>
+                  <span>Icyo Isomo Rivuga mu Kinyarwanda (Audible Transcript)</span>
+                  <span className="font-mono text-emerald-700 dark:text-emerald-400">
+                    {speaker === 'keza' ? 'Ijwi: Keza' : 'Ijwi: Mugisha'}
+                  </span>
                 </div>
                 <p className="text-stone-800 dark:text-stone-200 leading-relaxed italic font-medium">
                   "{lesson.kinyarwandaAudioText}"

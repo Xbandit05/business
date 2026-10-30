@@ -2,6 +2,9 @@ export type UserRole = 'farmer' | 'buyer' | 'agent' | 'supplier' | 'expert' | 'a
 
 export type Language = 'en' | 'rw';
 
+export type RwandaDistrict = string;
+export type RwandaSector = string;
+
 export type NyagatareSector =
   | 'Mimuri'
   | 'Rukomo'
@@ -16,7 +19,8 @@ export type NyagatareSector =
   | 'Tabagwe'
   | 'Gatunda'
   | 'Mukama'
-  | 'Karama';
+  | 'Karama'
+  | string;
 
 export type CropType =
   | 'maize'
@@ -67,17 +71,41 @@ export type OrderStatus =
 
 export type CommissionStatus = 'calculated' | 'due' | 'paid' | 'waived' | 'reversed';
 
+export type UserCategory = 'seller' | 'buyer' | 'supplier' | 'agent' | 'expert' | 'admin';
+
+export interface SavedUserCredentials {
+  id: string;
+  fullName: string;
+  email?: string;
+  phoneNumber: string;
+  role: UserRole;
+  category: UserCategory;
+  nicheSpecialty?: string;
+  businessOrFarmName?: string;
+  tradeVolumeScale?: string;
+  district: string;
+  sector: NyagatareSector;
+  cooperativeName?: string;
+  savedAt: string;
+}
+
 export interface UserProfile {
   id: string;
   fullName: string;
   email?: string;
   phoneNumber: string;
   role: UserRole;
+  category?: UserCategory;
+  nicheSpecialty?: string;
+  businessOrFarmName?: string;
+  tradeVolumeScale?: string;
   district: string;
   sector: NyagatareSector;
   cooperativeName?: string;
   isVerified: boolean;
   isDemo: boolean;
+  savedCredentials?: boolean;
+  savedAt?: string;
 }
 
 export interface Farm {
@@ -85,6 +113,7 @@ export interface Farm {
   farmerId: string;
   farmerName: string;
   name: string;
+  district?: string;
   sector: NyagatareSector;
   cell: string;
   totalAreaHa: number;
@@ -139,6 +168,7 @@ export interface ProduceListing {
   deliveryOption: DeliveryOption;
   status: 'active' | 'under_negotiation' | 'sold_out';
   harvestDate: string;
+  district?: string;
   sector: NyagatareSector;
   isDemo: boolean;
   createdAt: string;
@@ -182,6 +212,7 @@ export interface Order {
   buyerName: string;
   buyerPhone: string;
   buyerCompany?: string;
+  district?: string;
   sector: NyagatareSector;
   quantityKg: number;
   unitPriceRwf: number;
@@ -231,6 +262,7 @@ export interface AgroSupplier {
   id: string;
   name: string;
   category: 'Certified Seeds' | 'Fertilizers & Chemicals' | 'Drip Irrigation & Pumps' | 'Animal Feed & Fodder';
+  district?: string;
   sector: NyagatareSector;
   locationDetails: string;
   phone: string;
@@ -246,6 +278,7 @@ export interface AgronomistExpert {
   title: string;
   specialization: string;
   affiliation: string;
+  district?: string;
   sector: NyagatareSector;
   phone: string;
   email: string;

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useLanguage } from '../../context/LanguageContext.tsx';
 import { useApp } from '../../context/AppContext.tsx';
 import { NYAGATARE_SECTORS } from '../../data/nyagatare.ts';
+import { getAllDistricts, getSectorsForDistrict } from '../../data/districts.ts';
 import { NyagatareSector, CropType, QualityGrade } from '../../types/index.ts';
 import {
   Users,
@@ -20,7 +21,8 @@ interface AssistedFarmer {
   id: string;
   name: string;
   phone: string;
-  sector: NyagatareSector;
+  district?: string;
+  sector: string;
   coop: string;
   acresHa: number;
   crop: string;
@@ -31,11 +33,14 @@ export const CommunityAgentAssistedView: React.FC = () => {
   const { t, speakKinyarwandaText, isSpeaking } = useLanguage();
   const { addFarm, addPlot, createListing, showToast } = useApp();
 
+  const allDistricts = getAllDistricts();
+
   const [assistedList, setAssistedList] = useState<AssistedFarmer[]>([
     {
       id: 'agent_rec_1',
       name: 'Aloys Twagirayezu',
       phone: '+250 788 445 112',
+      district: 'Nyagatare',
       sector: 'Mimuri',
       coop: 'Abahujumugambi Cooperative',
       acresHa: 1.8,
@@ -46,24 +51,47 @@ export const CommunityAgentAssistedView: React.FC = () => {
       id: 'agent_rec_2',
       name: 'Esperance Mukandori',
       phone: '+250 788 556 223',
+      district: 'Nyagatare',
       sector: 'Rukomo',
       coop: 'Dukundumurimo Rukomo',
       acresHa: 0.8,
       crop: 'Climbing Beans (RWR 2245)',
       notes: 'Ready to aggregate 1,200kg at Rukomo collection center.',
     },
+    {
+      id: 'agent_rec_3',
+      name: 'Théoneste Bizimana',
+      phone: '+250 788 667 334',
+      district: 'Musanze',
+      sector: 'Kinigi',
+      coop: 'COOPAC Kinigi Potato Seed',
+      acresHa: 1.2,
+      crop: 'Irish Potatoes (Kinigi Variety)',
+      notes: 'Registered for volcanic highland cold storage aggregation.',
+    },
   ]);
 
   const [isRegistering, setIsRegistering] = useState(false);
   const [farmerName, setFarmerName] = useState('');
   const [farmerPhone, setFarmerPhone] = useState('');
-  const [sector, setSector] = useState<NyagatareSector>('Mimuri');
+  const [district, setDistrict] = useState<string>('Nyagatare');
+  const [sector, setSector] = useState<string>('Mimuri');
   const [cooperative, setCooperative] = useState('');
   const [plotAreaHa, setPlotAreaHa] = useState('1.5');
   const [cropType, setCropType] = useState<CropType>('maize');
   const [produceQtyKg, setProduceQtyKg] = useState('2000');
   const [unitPriceRwf, setUnitPriceRwf] = useState('380');
   const [agentNotes, setAgentNotes] = useState('');
+
+  const availableSectors = getSectorsForDistrict(district);
+
+  const handleDistrictChange = (newDist: string) => {
+    setDistrict(newDist);
+    const secs = getSectorsForDistrict(newDist);
+    if (secs.length > 0) {
+      setSector(secs[0].name);
+    }
+  };
 
   const handleRegisterOnBehalf = (e: React.FormEvent) => {
     e.preventDefault();
@@ -74,6 +102,7 @@ export const CommunityAgentAssistedView: React.FC = () => {
       farmerId: `assisted_${Date.now()}`,
       farmerName: farmerName.trim(),
       name: `Umurima wa ${farmerName} (${sector})`,
+      district,
       sector,
       cell: 'Center Cell',
       totalAreaHa: parseFloat(plotAreaHa) || 1.0,
@@ -106,6 +135,7 @@ export const CommunityAgentAssistedView: React.FC = () => {
       deliveryOption: 'Nyagatare Aggregation Center',
       status: 'active',
       harvestDate: new Date().toISOString().split('T')[0],
+      district,
       sector,
     });
 
@@ -114,6 +144,7 @@ export const CommunityAgentAssistedView: React.FC = () => {
       id: `assisted_${Date.now()}`,
       name: farmerName.trim(),
       phone: farmerPhone.trim(),
+      district,
       sector,
       coop: cooperative.trim() || 'Individual Smallholder',
       acresHa: parseFloat(plotAreaHa) || 1.0,
@@ -208,21 +239,40 @@ export const CommunityAgentAssistedView: React.FC = () => {
                 />
               </div>
 
-              <div>
-                <label className="block text-xs font-semibold text-stone-700 dark:text-stone-300 mb-1">
-                  Nyagatare Sector (Umurenge) *
-                </label>
-                <select
-                  value={sector}
-                  onChange={(e) => setSector(e.target.value as NyagatareSector)}
-                  className="w-full px-3 py-2 text-xs bg-stone-50 dark:bg-stone-800 border border-stone-300 dark:border-stone-700 rounded-lg text-stone-900 dark:text-stone-100"
-                >
-                  {NYAGATARE_SECTORS.map((s) => (
-                    <option key={s.name} value={s.name}>
-                      {s.name}
-                    </option>
-                  ))}
-                </select>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-stone-700 dark:text-stone-300 mb-1">
+                    District (Akarere) *
+                  </label>
+                  <select
+                    value={district}
+                    onChange={(e) => handleDistrictChange(e.target.value)}
+                    className="w-full px-3 py-2 text-xs bg-stone-50 dark:bg-stone-800 border border-stone-300 dark:border-stone-700 rounded-lg text-stone-900 dark:text-stone-100 font-semibold"
+                  >
+                    {allDistricts.map((d) => (
+                      <option key={d.name} value={d.name}>
+                        {d.name} ({d.province})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-stone-700 dark:text-stone-300 mb-1">
+                    Sector (Umurenge) *
+                  </label>
+                  <select
+                    value={sector}
+                    onChange={(e) => setSector(e.target.value)}
+                    className="w-full px-3 py-2 text-xs bg-stone-50 dark:bg-stone-800 border border-stone-300 dark:border-stone-700 rounded-lg text-stone-900 dark:text-stone-100"
+                  >
+                    {availableSectors.map((s) => (
+                      <option key={s.name} value={s.name}>
+                        {s.name} Sector
+                      </option>
+                    ))}
+                  </select>
+                </div>
               </div>
 
               <div>

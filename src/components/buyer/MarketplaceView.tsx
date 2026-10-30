@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { useLanguage } from '../../context/LanguageContext.tsx';
 import { useApp } from '../../context/AppContext.tsx';
 import { ProduceListing, BuyerOffer, CropType, NyagatareSector, QualityGrade } from '../../types/index.ts';
-import { NYAGATARE_SECTORS } from '../../data/nyagatare.ts';
+import { getAllDistricts, getSectorsForDistrict } from '../../data/districts.ts';
 import {
   ShoppingBag,
   Filter,
@@ -31,8 +31,14 @@ export const MarketplaceView: React.FC<MarketplaceViewProps> = ({ onSelectListin
   const [activeTab, setActiveTab] = useState<'catalog' | 'myBids'>('catalog');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCrop, setSelectedCrop] = useState<string>('all');
+  const [selectedDistrict, setSelectedDistrict] = useState<string>('all');
   const [selectedSector, setSelectedSector] = useState<string>('all');
   const [selectedGrade, setSelectedGrade] = useState<string>('all');
+
+  const allDistricts = getAllDistricts();
+  const sectorsForSelectedDistrict = selectedDistrict !== 'all'
+    ? getSectorsForDistrict(selectedDistrict)
+    : [];
 
   // Filter listings
   const filteredListings = useMemo(() => {
@@ -46,11 +52,15 @@ export const MarketplaceView: React.FC<MarketplaceViewProps> = ({ onSelectListin
         if (!matchesName && !matchesVariety && !matchesFarmer && !matchesCoop) return false;
       }
       if (selectedCrop !== 'all' && item.cropType !== selectedCrop) return false;
+      if (selectedDistrict !== 'all') {
+        const itemDist = item.district || 'Nyagatare';
+        if (itemDist.toLowerCase() !== selectedDistrict.toLowerCase()) return false;
+      }
       if (selectedSector !== 'all' && item.sector !== selectedSector) return false;
       if (selectedGrade !== 'all' && item.qualityGrade !== selectedGrade) return false;
       return true;
     });
-  }, [listings, searchQuery, selectedCrop, selectedSector, selectedGrade]);
+  }, [listings, searchQuery, selectedCrop, selectedDistrict, selectedSector, selectedGrade]);
 
   const getStatusBadge = (status: BuyerOffer['status']) => {
     switch (status) {
@@ -122,7 +132,7 @@ export const MarketplaceView: React.FC<MarketplaceViewProps> = ({ onSelectListin
               />
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
               {/* Filter: Crop Type */}
               <div>
                 <label className="block text-[11px] font-semibold text-stone-500 uppercase tracking-wide mb-1">
@@ -141,10 +151,33 @@ export const MarketplaceView: React.FC<MarketplaceViewProps> = ({ onSelectListin
                   <option value="soya">Soya Beans</option>
                   <option value="sorghum">Sorghum (Amasaka)</option>
                   <option value="dairy_fodder">Dairy Fodder</option>
+                  <option value="vegetables">Horticulture / Vegetables</option>
                 </select>
               </div>
 
-              {/* Filter: Nyagatare Sector */}
+              {/* Filter: District */}
+              <div>
+                <label className="block text-[11px] font-semibold text-stone-500 uppercase tracking-wide mb-1">
+                  District (Akarere)
+                </label>
+                <select
+                  value={selectedDistrict}
+                  onChange={(e) => {
+                    setSelectedDistrict(e.target.value);
+                    setSelectedSector('all');
+                  }}
+                  className="w-full px-3 py-1.5 text-xs font-medium bg-stone-50 dark:bg-stone-800 border border-stone-300 dark:border-stone-700 rounded-lg text-stone-800 dark:text-stone-200 font-semibold"
+                >
+                  <option value="all">All Rwanda (Igihugu Cyose)</option>
+                  {allDistricts.map((d) => (
+                    <option key={d.name} value={d.name}>
+                      {d.name} ({d.province})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Filter: Sector */}
               <div>
                 <label className="block text-[11px] font-semibold text-stone-500 uppercase tracking-wide mb-1">
                   {t('market.filterSector')}
@@ -154,8 +187,10 @@ export const MarketplaceView: React.FC<MarketplaceViewProps> = ({ onSelectListin
                   onChange={(e) => setSelectedSector(e.target.value)}
                   className="w-full px-3 py-1.5 text-xs font-medium bg-stone-50 dark:bg-stone-800 border border-stone-300 dark:border-stone-700 rounded-lg text-stone-800 dark:text-stone-200"
                 >
-                  <option value="all">All Sectors in Nyagatare</option>
-                  {NYAGATARE_SECTORS.map((s) => (
+                  <option value="all">
+                    {selectedDistrict === 'all' ? 'All Sectors' : `All Sectors in ${selectedDistrict}`}
+                  </option>
+                  {sectorsForSelectedDistrict.map((s) => (
                     <option key={s.name} value={s.name}>
                       {s.name} Sector
                     </option>
@@ -221,7 +256,9 @@ export const MarketplaceView: React.FC<MarketplaceViewProps> = ({ onSelectListin
 
                         <div className="flex items-center gap-1.5 text-xs text-stone-500 dark:text-stone-400 mt-1">
                           <MapPin className="w-3.5 h-3.5 text-emerald-700 dark:text-emerald-400 shrink-0" />
-                          <span className="font-medium text-stone-700 dark:text-stone-300">{item.sector} Sector</span>
+                          <span className="font-semibold text-stone-700 dark:text-stone-300">
+                            {item.district ? `${item.district} · ${item.sector}` : `${item.sector} Sector`}
+                          </span>
                           <span>·</span>
                           <span className="truncate">{item.variety}</span>
                         </div>

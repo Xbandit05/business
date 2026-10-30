@@ -52,11 +52,13 @@ export const Navbar: React.FC<NavbarProps> = ({
   const handleAudioPrompt = () => {
     if (language === 'rw') {
       speakKinyarwandaText(
-        'Murakaza neza kuri AgriBridge Rwanda. Ihuriro ry\'ubuhinzi muri Nyagatare ryo guhuza abahinzi n\'abaguzi.'
+        'Murakaza neza kuri AgriBridge Rwanda. Ihuriro ry\'ubuhinzi ry\'u Rwanda ryo guhuza abahinzi n\'abaguzi mu turere twose tw\'igihugu.',
+        'navbar_welcome'
       );
     } else {
       speakKinyarwandaText(
-        'Welcome to AgriBridge Rwanda. Growing Together. Connecting Markets.'
+        'Welcome to AgriBridge Rwanda. Growing Together. Connecting Markets across Rwanda.',
+        'navbar_welcome'
       );
     }
   };
@@ -152,11 +154,16 @@ export const Navbar: React.FC<NavbarProps> = ({
             {/* Judge Demo / Account Access Button */}
             <button
               onClick={() => setIsAuthModalOpen(true)}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg border border-emerald-300 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300 hover:bg-emerald-100 transition-colors whitespace-nowrap"
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg border border-emerald-300 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300 hover:bg-emerald-100 dark:hover:bg-emerald-900/50 transition-colors whitespace-nowrap shadow-2xs"
+              title="Identity & Login Portal (Password: 123)"
             >
-              <Award className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">{t('btn.judgeLogin')}</span>
-              <span className="sm:hidden">Demo</span>
+              <Award className="w-3.5 h-3.5 text-emerald-700 dark:text-emerald-400" />
+              <span className="hidden sm:inline">
+                {currentUser?.fullName
+                  ? `${currentUser.fullName.split(' ')[0]} (${currentUser.category || currentUser.role})`
+                  : t('btn.judgeLogin')}
+              </span>
+              <span className="sm:hidden">{currentUser?.category || 'Login'}</span>
             </button>
 
             {/* Primary Action Button */}

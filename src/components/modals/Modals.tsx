@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useLanguage } from '../../context/LanguageContext.tsx';
 import { useApp } from '../../context/AppContext.tsx';
 import { NYAGATARE_SECTORS } from '../../data/nyagatare.ts';
+import { getAllDistricts, getSectorsForDistrict } from '../../data/districts.ts';
 import {
   Farm,
   Plot,
@@ -23,12 +24,24 @@ export const RegisterFarmModal: React.FC<{
   const { t } = useLanguage();
   const { addFarm } = useApp();
 
+  const districts = getAllDistricts();
+  const [district, setDistrict] = useState<string>('Nyagatare');
   const [name, setName] = useState('');
-  const [sector, setSector] = useState<NyagatareSector>('Mimuri');
+  const [sector, setSector] = useState<string>('Mimuri');
   const [cell, setCell] = useState('');
   const [totalAreaHa, setTotalAreaHa] = useState('2.0');
   const [soilType, setSoilType] = useState('Sandy Clay Loam');
   const [waterSource, setWaterSource] = useState('Rainfed & retention trench');
+
+  const availableSectors = getSectorsForDistrict(district);
+
+  const handleDistrictChange = (newDistrict: string) => {
+    setDistrict(newDistrict);
+    const sectors = getSectorsForDistrict(newDistrict);
+    if (sectors.length > 0) {
+      setSector(sectors[0].name);
+    }
+  };
 
   if (!isOpen) return null;
 
@@ -40,6 +53,7 @@ export const RegisterFarmModal: React.FC<{
       farmerId: 'current_user',
       farmerName: 'Jean-Damascene Niyonzima',
       name: name.trim(),
+      district,
       sector,
       cell: cell.trim() || 'Central Cell',
       totalAreaHa: parseFloat(totalAreaHa) || 1.0,
@@ -74,7 +88,7 @@ export const RegisterFarmModal: React.FC<{
               required
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="e.g., Umurima w'Icyerekezo Mimuri"
+              placeholder="e.g., Umurima w'Icyerekezo"
               className="w-full px-3 py-2 bg-stone-50 dark:bg-stone-800 border border-stone-300 dark:border-stone-700 rounded-lg text-stone-900 dark:text-stone-100"
             />
           </div>
@@ -82,21 +96,40 @@ export const RegisterFarmModal: React.FC<{
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block font-semibold text-stone-700 dark:text-stone-300 mb-1">
-                Nyagatare Sector (Umurenge) *
+                District (Akarere) *
+              </label>
+              <select
+                value={district}
+                onChange={(e) => handleDistrictChange(e.target.value)}
+                className="w-full px-3 py-2 bg-stone-50 dark:bg-stone-800 border border-stone-300 dark:border-stone-700 rounded-lg text-stone-900 dark:text-stone-100 font-medium"
+              >
+                {districts.map((d) => (
+                  <option key={d.name} value={d.name}>
+                    {d.name} ({d.province})
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block font-semibold text-stone-700 dark:text-stone-300 mb-1">
+                Sector (Umurenge) *
               </label>
               <select
                 value={sector}
-                onChange={(e) => setSector(e.target.value as NyagatareSector)}
+                onChange={(e) => setSector(e.target.value)}
                 className="w-full px-3 py-2 bg-stone-50 dark:bg-stone-800 border border-stone-300 dark:border-stone-700 rounded-lg text-stone-900 dark:text-stone-100"
               >
-                {NYAGATARE_SECTORS.map((s) => (
+                {availableSectors.map((s) => (
                   <option key={s.name} value={s.name}>
                     {s.name} Sector
                   </option>
                 ))}
               </select>
             </div>
+          </div>
 
+          <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block font-semibold text-stone-700 dark:text-stone-300 mb-1">
                 Cell / Village (Akagari)
@@ -404,10 +437,22 @@ export const ListProduceModal: React.FC<{
   const [quantityKg, setQuantityKg] = useState('2000');
   const [minOrderKg, setMinOrderKg] = useState('200');
   const [unitPriceRwf, setUnitPriceRwf] = useState('380');
-  const [sector, setSector] = useState<NyagatareSector>('Mimuri');
+  const [district, setDistrict] = useState<string>('Nyagatare');
+  const [sector, setSector] = useState<string>('Mimuri');
   const [grade, setGrade] = useState<QualityGrade>('Grade 1 (Premium / Export)');
   const [packaging, setPackaging] = useState<PackagingType>('50kg Woven Bags');
   const [delivery, setDelivery] = useState<DeliveryOption>('Nyagatare Aggregation Center');
+
+  const availableDistricts = getAllDistricts();
+  const availableSectors = getSectorsForDistrict(district);
+
+  const handleDistrictChange = (newDist: string) => {
+    setDistrict(newDist);
+    const secs = getSectorsForDistrict(newDist);
+    if (secs.length > 0) {
+      setSector(secs[0].name);
+    }
+  };
 
   useEffect(() => {
     if (prefillCycle) {
@@ -417,6 +462,7 @@ export const ListProduceModal: React.FC<{
       setQuantityKg((prefillCycle.actualHarvestKg || prefillCycle.estimatedYieldKg).toString());
       const f = farms.find((farm) => farm.id === prefillCycle.farmId);
       if (f) {
+        if (f.district) setDistrict(f.district);
         setSector(f.sector);
       }
     } else {
@@ -448,6 +494,7 @@ export const ListProduceModal: React.FC<{
       deliveryOption: delivery,
       status: 'active',
       harvestDate: new Date().toISOString().split('T')[0],
+      district,
       sector,
     });
 
@@ -473,6 +520,42 @@ export const ListProduceModal: React.FC<{
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block font-semibold text-stone-700 dark:text-stone-300 mb-1">
+                District (Akarere) *
+              </label>
+              <select
+                value={district}
+                onChange={(e) => handleDistrictChange(e.target.value)}
+                className="w-full px-3 py-2 bg-stone-50 dark:bg-stone-800 border border-stone-300 dark:border-stone-700 rounded-lg text-stone-900 dark:text-stone-100 font-medium"
+              >
+                {availableDistricts.map((d) => (
+                  <option key={d.name} value={d.name}>
+                    {d.name} ({d.province})
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block font-semibold text-stone-700 dark:text-stone-300 mb-1">
+                Sector (Umurenge) *
+              </label>
+              <select
+                value={sector}
+                onChange={(e) => setSector(e.target.value)}
+                className="w-full px-3 py-2 bg-stone-50 dark:bg-stone-800 border border-stone-300 dark:border-stone-700 rounded-lg text-stone-900 dark:text-stone-100"
+              >
+                {availableSectors.map((s) => (
+                  <option key={s.name} value={s.name}>
+                    {s.name} Sector
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block font-semibold text-stone-700 dark:text-stone-300 mb-1">
                 Crop Category *
               </label>
               <select
@@ -486,28 +569,10 @@ export const ListProduceModal: React.FC<{
                 <option value="cassava">Cassava (Imyumbati)</option>
                 <option value="soya">Soya Beans</option>
                 <option value="sorghum">Sorghum (Amasaka)</option>
+                <option value="vegetables">Horticulture / Vegetables</option>
               </select>
             </div>
 
-            <div>
-              <label className="block font-semibold text-stone-700 dark:text-stone-300 mb-1">
-                Nyagatare Sector *
-              </label>
-              <select
-                value={sector}
-                onChange={(e) => setSector(e.target.value as NyagatareSector)}
-                className="w-full px-3 py-2 bg-stone-50 dark:bg-stone-800 border border-stone-300 dark:border-stone-700 rounded-lg text-stone-900 dark:text-stone-100"
-              >
-                {NYAGATARE_SECTORS.map((s) => (
-                  <option key={s.name} value={s.name}>
-                    {s.name} Sector
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block font-semibold text-stone-700 dark:text-stone-300 mb-1">
                 Commodity Title *
@@ -521,19 +586,19 @@ export const ListProduceModal: React.FC<{
                 className="w-full px-3 py-2 bg-stone-50 dark:bg-stone-800 border border-stone-300 dark:border-stone-700 rounded-lg text-stone-900 dark:text-stone-100"
               />
             </div>
+          </div>
 
-            <div>
-              <label className="block font-semibold text-stone-700 dark:text-stone-300 mb-1">
-                Variety / Seed Name
-              </label>
-              <input
-                type="text"
-                value={variety}
-                onChange={(e) => setVariety(e.target.value)}
-                placeholder="e.g. PAN 53 / RWR 2245"
-                className="w-full px-3 py-2 bg-stone-50 dark:bg-stone-800 border border-stone-300 dark:border-stone-700 rounded-lg text-stone-900 dark:text-stone-100"
-              />
-            </div>
+          <div>
+            <label className="block font-semibold text-stone-700 dark:text-stone-300 mb-1">
+              Variety / Seed Name
+            </label>
+            <input
+              type="text"
+              value={variety}
+              onChange={(e) => setVariety(e.target.value)}
+              placeholder="e.g. PAN 53 / RWR 2245"
+              className="w-full px-3 py-2 bg-stone-50 dark:bg-stone-800 border border-stone-300 dark:border-stone-700 rounded-lg text-stone-900 dark:text-stone-100"
+            />
           </div>
 
           <div className="grid grid-cols-3 gap-3">

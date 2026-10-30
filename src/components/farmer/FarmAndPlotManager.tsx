@@ -229,8 +229,11 @@ export const FarmAndPlotManager: React.FC<FarmAndPlotManagerProps> = ({
                             </span>
                           )}
                         </div>
-                        <div className="flex items-center gap-2 text-xs text-stone-500 dark:text-stone-400 mt-1">
-                          <span>{farm.sector} Sector</span>
+                        <div className="flex items-center gap-1.5 text-xs text-stone-500 dark:text-stone-400 mt-1">
+                          <MapPin className="w-3.5 h-3.5 text-emerald-700 shrink-0" />
+                          <span className="font-semibold text-stone-700 dark:text-stone-300">
+                            {farm.district ? `${farm.district} · ${farm.sector}` : `${farm.sector} Sector`}
+                          </span>
                           <span>·</span>
                           <span>{farm.cell}</span>
                         </div>
