@@ -29,6 +29,9 @@ import {
 } from './components/modals/Modals.tsx';
 import { CropCycle, ProduceListing } from './types/index.ts';
 import { Sprout, Heart } from 'lucide-react';
+import { FounderWatermark } from './components/common/FounderWatermark.tsx';
+import { AboutFoundersModal } from './components/modals/AboutFoundersModal.tsx';
+import { SocialOutreachBar } from './components/common/SocialOutreachBar.tsx';
 
 function AgriBridgeDashboard() {
   const { role } = useApp();
@@ -40,6 +43,7 @@ function AgriBridgeDashboard() {
   const [isFarmModalOpen, setIsFarmModalOpen] = useState(false);
   const [isPlotModalOpen, setIsPlotModalOpen] = useState(false);
   const [isListingModalOpen, setIsListingModalOpen] = useState(false);
+  const [isAboutFoundersOpen, setIsAboutFoundersOpen] = useState(false);
   const [prefillCycle, setPrefillCycle] = useState<CropCycle | null>(null);
   const [selectedOfferListing, setSelectedOfferListing] = useState<ProduceListing | null>(null);
 
@@ -58,20 +62,24 @@ function AgriBridgeDashboard() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-stone-50 dark:bg-stone-950 text-stone-900 dark:text-stone-100 transition-colors">
+    <div className="relative min-h-screen flex flex-col bg-stone-50 dark:bg-stone-950 text-stone-900 dark:text-stone-100 transition-colors">
+      {/* Subtle Botanical Calligraphy Background Watermark (3-5% Opacity) */}
+      <FounderWatermark variant="subtle-watermark" />
+
       {/* Top Navbar */}
       <Navbar
         activeTab={activeTab}
         setActiveTab={setActiveTab}
         onOpenNewPlotModal={() => setIsPlotModalOpen(true)}
         onOpenNewListingModal={handleOpenBlankListing}
+        onOpenAboutFounders={() => setIsAboutFoundersOpen(true)}
       />
 
       {/* Transparency & Demo Filter Banner */}
       <DemoDisclaimerBanner />
 
       {/* Main View Container */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <main className="relative z-10 flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {activeTab === 'farmer' && (
           <FarmAndPlotManager
             onOpenNewFarmModal={() => setIsFarmModalOpen(true)}
@@ -160,18 +168,43 @@ function AgriBridgeDashboard() {
             </div>
           </div>
 
+          {/* Social Platforms & Direct Outreach Hub */}
+          <div className="pt-3">
+            <SocialOutreachBar />
+          </div>
+
           {/* Bottom Row: Exact Creator Credits and Copyright */}
           <div className="pt-4 border-t border-stone-100 dark:border-stone-800/80 flex flex-col sm:flex-row items-center justify-between gap-2.5 text-xs">
-            <div className="font-medium text-stone-700 dark:text-stone-300 flex items-center gap-1.5">
+            <div className="font-medium text-stone-700 dark:text-stone-300 flex items-center gap-2">
               <span>Built with passion by Idris &amp; Melody</span>
+              <button
+                onClick={() => setIsAboutFoundersOpen(true)}
+                className="text-[11px] font-serif italic text-emerald-800 dark:text-emerald-400 hover:text-emerald-950 dark:hover:text-emerald-200 transition-colors flex items-center gap-1 cursor-pointer"
+                title="View Founders' Story &amp; Botanical Seal"
+              >
+                <span>&middot; View Signature Seal</span>
+              </button>
             </div>
 
-            <div className="text-[11px] text-stone-400 dark:text-stone-500">
-              &copy; {new Date().getFullYear()} AgriBridge Rwanda. All rights reserved.
+            <div className="flex items-center gap-3 text-[11px] text-stone-400 dark:text-stone-500">
+              <button
+                onClick={() => setIsAboutFoundersOpen(true)}
+                className="hover:text-stone-600 dark:hover:text-stone-300 transition-colors cursor-pointer"
+              >
+                Founders
+              </button>
+              <span>·</span>
+              <span>&copy; {new Date().getFullYear()} AgriBridge Rwanda. All rights reserved.</span>
             </div>
           </div>
         </div>
       </footer>
+
+      {/* About Founders & Botanical Seal Modal */}
+      <AboutFoundersModal
+        isOpen={isAboutFoundersOpen}
+        onClose={() => setIsAboutFoundersOpen(false)}
+      />
     </div>
   );
 }

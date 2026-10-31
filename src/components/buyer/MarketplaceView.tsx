@@ -19,6 +19,7 @@ import {
   ArrowRight,
   Info,
 } from 'lucide-react';
+import { FounderWatermark } from '../common/FounderWatermark.tsx';
 
 interface MarketplaceViewProps {
   onSelectListingForOffer: (listing: ProduceListing) => void;
@@ -80,40 +81,43 @@ export const MarketplaceView: React.FC<MarketplaceViewProps> = ({ onSelectListin
   return (
     <div className="space-y-8">
       {/* Title & Tabs */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-stone-900 dark:text-stone-50">
-            {t('market.title')}
-          </h1>
-          <p className="mt-1 text-sm text-stone-600 dark:text-stone-400">
-            {t('market.subtitle')}
-          </p>
-        </div>
+      <div className="relative overflow-hidden p-5 sm:p-6 rounded-2xl bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 shadow-2xs">
+        <FounderWatermark variant="section-banner" className="opacity-12 dark:opacity-20" />
+        <div className="relative z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-stone-900 dark:text-stone-50">
+              {t('market.title')}
+            </h1>
+            <p className="mt-1 text-sm text-stone-600 dark:text-stone-400">
+              {t('market.subtitle')}
+            </p>
+          </div>
 
-        {/* Catalog vs My Bids Tab Switcher */}
-        <div className="inline-flex rounded-lg border border-stone-300 dark:border-stone-700 bg-white dark:bg-stone-900 p-1 shadow-2xs">
-          <button
-            onClick={() => setActiveTab('catalog')}
-            className={`flex items-center gap-2 px-3 py-1.5 text-xs font-semibold rounded-md transition-colors ${
-              activeTab === 'catalog'
-                ? 'bg-emerald-800 text-white shadow-2xs'
-                : 'text-stone-600 dark:text-stone-300 hover:text-stone-900'
-            }`}
-          >
-            <ShoppingBag className="w-3.5 h-3.5" />
-            <span>Available Produce ({listings.length})</span>
-          </button>
-          <button
-            onClick={() => setActiveTab('myBids')}
-            className={`flex items-center gap-2 px-3 py-1.5 text-xs font-semibold rounded-md transition-colors ${
-              activeTab === 'myBids'
-                ? 'bg-emerald-800 text-white shadow-2xs'
-                : 'text-stone-600 dark:text-stone-300 hover:text-stone-900'
-            }`}
-          >
-            <Handshake className="w-3.5 h-3.5" />
-            <span>My Submitted Bids ({offers.length})</span>
-          </button>
+          {/* Catalog vs My Bids Tab Switcher */}
+          <div className="inline-flex rounded-lg border border-stone-300 dark:border-stone-700 bg-stone-50 dark:bg-stone-800/80 p-1 shadow-2xs shrink-0">
+            <button
+              onClick={() => setActiveTab('catalog')}
+              className={`flex items-center gap-2 px-3 py-1.5 text-xs font-semibold rounded-md transition-colors ${
+                activeTab === 'catalog'
+                  ? 'bg-emerald-800 text-white shadow-2xs'
+                  : 'text-stone-600 dark:text-stone-300 hover:text-stone-900'
+              }`}
+            >
+              <ShoppingBag className="w-3.5 h-3.5" />
+              <span>Available Produce ({listings.length})</span>
+            </button>
+            <button
+              onClick={() => setActiveTab('myBids')}
+              className={`flex items-center gap-2 px-3 py-1.5 text-xs font-semibold rounded-md transition-colors ${
+                activeTab === 'myBids'
+                  ? 'bg-emerald-800 text-white shadow-2xs'
+                  : 'text-stone-600 dark:text-stone-300 hover:text-stone-900'
+              }`}
+            >
+              <Handshake className="w-3.5 h-3.5" />
+              <span>My Submitted Bids ({offers.length})</span>
+            </button>
+          </div>
         </div>
       </div>
 

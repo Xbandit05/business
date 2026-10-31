@@ -38,6 +38,7 @@ interface NavbarProps {
   setActiveTab: (tab: ActiveTabType) => void;
   onOpenNewPlotModal: () => void;
   onOpenNewListingModal: () => void;
+  onOpenAboutFounders?: () => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -45,6 +46,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   setActiveTab,
   onOpenNewPlotModal,
   onOpenNewListingModal,
+  onOpenAboutFounders,
 }) => {
   const { language, setLanguage, t, speakKinyarwandaText, isSpeaking } = useLanguage();
   const { currentUser, setIsAuthModalOpen } = useApp();
@@ -198,6 +200,16 @@ export const Navbar: React.FC<NavbarProps> = ({
               </button>
             );
           })}
+          {onOpenAboutFounders && (
+            <button
+              onClick={onOpenAboutFounders}
+              className="flex items-center gap-1.5 px-3 py-1 rounded-md font-semibold whitespace-nowrap transition-colors shrink-0 text-emerald-800 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/40"
+              title="View Idris & Melody Founders' Story and Botanical Signature"
+            >
+              <Sprout className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+              <span>Founders: Idris &amp; Melody</span>
+            </button>
+          )}
         </div>
       </div>
     </header>

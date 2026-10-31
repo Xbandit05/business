@@ -17,6 +17,7 @@ import {
   Tag,
   Scale,
 } from 'lucide-react';
+import { FounderWatermark } from '../common/FounderWatermark.tsx';
 
 interface FarmAndPlotManagerProps {
   onOpenNewListingWithCycle?: (cycle: CropCycle) => void;
@@ -105,6 +106,23 @@ export const FarmAndPlotManager: React.FC<FarmAndPlotManagerProps> = ({
             <Plus className="w-4 h-4" />
             <span>{t('farmer.addPlot')}</span>
           </button>
+        </div>
+      </div>
+
+      {/* Homepage Botanical Overview & Watermark Accent */}
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-emerald-900 via-emerald-800 to-teal-900 dark:from-stone-900 dark:via-emerald-950/70 dark:to-stone-900 p-6 sm:p-7 text-white shadow-sm border border-emerald-700/40 dark:border-emerald-800/40">
+        <FounderWatermark variant="section-banner" className="opacity-15 dark:opacity-25" />
+        <div className="relative z-10 max-w-2xl space-y-2">
+          <div className="inline-flex items-center gap-2 text-xs font-semibold tracking-wider uppercase text-emerald-200">
+            <Sprout className="w-4 h-4 text-emerald-300" />
+            <span>AgriBridge Rwanda &middot; Growing Together. Connecting Markets.</span>
+          </div>
+          <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-white">
+            Transforming Smallholder Agriculture Across Rwanda
+          </h2>
+          <p className="text-xs sm:text-sm text-emerald-100/90 leading-relaxed">
+            Record plots, monitor seasonal harvest stages, and connect with verified buyers across all Rwandan districts with transparent pricing and real-time digital tracking.
+          </p>
         </div>
       </div>
 
