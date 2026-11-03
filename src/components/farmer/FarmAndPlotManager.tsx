@@ -16,6 +16,7 @@ import {
   Plus,
   Tag,
   Scale,
+  Sparkles,
 } from 'lucide-react';
 import { FounderWatermark } from '../common/FounderWatermark.tsx';
 
@@ -23,12 +24,14 @@ interface FarmAndPlotManagerProps {
   onOpenNewListingWithCycle?: (cycle: CropCycle) => void;
   onOpenNewFarmModal: () => void;
   onOpenNewPlotModal: () => void;
+  onOpenAiAssistant?: () => void;
 }
 
 export const FarmAndPlotManager: React.FC<FarmAndPlotManagerProps> = ({
   onOpenNewListingWithCycle,
   onOpenNewFarmModal,
   onOpenNewPlotModal,
+  onOpenAiAssistant,
 }) => {
   const { t, language } = useLanguage();
   const { farms, plots, cropCycles, advanceCropStage, listings, offers } = useApp();
@@ -123,6 +126,17 @@ export const FarmAndPlotManager: React.FC<FarmAndPlotManagerProps> = ({
           <p className="text-xs sm:text-sm text-emerald-100/90 leading-relaxed">
             Record plots, monitor seasonal harvest stages, and connect with verified buyers across all Rwandan districts with transparent pricing and real-time digital tracking.
           </p>
+          {onOpenAiAssistant && (
+            <div className="pt-2">
+              <button
+                onClick={onOpenAiAssistant}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white text-emerald-900 hover:bg-emerald-50 text-xs font-bold transition-colors shadow-2xs cursor-pointer"
+              >
+                <Sparkles className="w-3.5 h-3.5 text-emerald-700" />
+                <span>Ask AgriBridge AI (Offline Companion)</span>
+              </button>
+            </div>
+          )}
         </div>
       </div>
 

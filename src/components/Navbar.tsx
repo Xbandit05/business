@@ -19,11 +19,14 @@ import {
   VolumeX,
   Plus,
   Award,
+  Sparkles,
 } from 'lucide-react';
+import { PWAInstallButton } from './common/PWAInstallButton.tsx';
 
 export type ActiveTabType =
   | 'farmer'
   | 'marketplace'
+  | 'ai'
   | 'offers'
   | 'orders'
   | 'finance'
@@ -68,6 +71,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   const navItems: { id: ActiveTabType; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
     { id: 'farmer', label: t('nav.dashboard'), icon: Sprout },
     { id: 'marketplace', label: t('nav.marketplace'), icon: ShoppingBag },
+    { id: 'ai', label: 'AgriBridge AI', icon: Sparkles },
     { id: 'offers', label: t('nav.offers'), icon: Handshake },
     { id: 'orders', label: t('nav.orders'), icon: FileText },
     { id: 'finance', label: t('nav.finance'), icon: Wallet },
@@ -104,9 +108,10 @@ export const Navbar: React.FC<NavbarProps> = ({
 
           {/* Zone 2: Navigation Links (Desktop) */}
           <nav className="hidden xl:flex items-center gap-1 overflow-x-auto py-1">
-            {navItems.slice(0, 7).map((item) => {
+            {navItems.slice(0, 8).map((item) => {
               const Icon = item.icon;
               const isActive = activeTab === item.id;
+              const isAi = item.id === 'ai';
               return (
                 <button
                   key={item.id}
@@ -114,11 +119,18 @@ export const Navbar: React.FC<NavbarProps> = ({
                   className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-md whitespace-nowrap transition-colors ${
                     isActive
                       ? 'bg-stone-100 dark:bg-stone-800 text-emerald-800 dark:text-emerald-400'
+                      : isAi
+                      ? 'text-emerald-800 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/40'
                       : 'text-stone-600 dark:text-stone-300 hover:text-stone-900 dark:hover:text-stone-100'
                   }`}
                 >
                   <Icon className="w-3.5 h-3.5" />
                   <span>{item.label}</span>
+                  {isAi && (
+                    <span className="text-[9px] px-1 py-0.2 rounded bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 font-mono">
+                      Offline
+                    </span>
+                  )}
                 </button>
               );
             })}
@@ -126,6 +138,9 @@ export const Navbar: React.FC<NavbarProps> = ({
 
           {/* Zone 3: Actions & Controls */}
           <div className="flex items-center gap-2 shrink-0">
+            {/* PWA Install Button */}
+            <PWAInstallButton />
+
             {/* Audio Guidance Button */}
             <button
               onClick={handleAudioPrompt}

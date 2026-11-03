@@ -32,6 +32,8 @@ import { Sprout, Heart } from 'lucide-react';
 import { FounderWatermark } from './components/common/FounderWatermark.tsx';
 import { AboutFoundersModal } from './components/modals/AboutFoundersModal.tsx';
 import { SocialOutreachBar } from './components/common/SocialOutreachBar.tsx';
+import { AgriBridgeAiView } from './components/ai/AgriBridgeAiView.tsx';
+import { OfflineIndicator } from './components/common/OfflineIndicator.tsx';
 
 function AgriBridgeDashboard() {
   const { role } = useApp();
@@ -85,11 +87,20 @@ function AgriBridgeDashboard() {
             onOpenNewFarmModal={() => setIsFarmModalOpen(true)}
             onOpenNewPlotModal={() => setIsPlotModalOpen(true)}
             onOpenNewListingWithCycle={handleOpenListingWithCycle}
+            onOpenAiAssistant={() => setActiveTab('ai')}
           />
         )}
 
         {activeTab === 'marketplace' && (
           <MarketplaceView onSelectListingForOffer={handleSelectListingForOffer} />
+        )}
+
+        {activeTab === 'ai' && (
+          <AgriBridgeAiView
+            onNavigateTab={(tab) => setActiveTab(tab)}
+            onOpenNewPlotModal={() => setIsPlotModalOpen(true)}
+            onOpenNewListingModal={handleOpenBlankListing}
+          />
         )}
 
         {activeTab === 'offers' && <FarmerOfferManager />}
@@ -139,6 +150,9 @@ function AgriBridgeDashboard() {
 
       {/* Toast Feedback */}
       <ToastContainer />
+
+      {/* Offline Connectivity & Knowledge Status Pill */}
+      <OfflineIndicator onOpenAiAssistant={() => setActiveTab('ai')} />
 
       {/* Shared Application Footer with Creator Credits & Official Branding */}
       <footer className="border-t border-stone-200 dark:border-stone-800 bg-white dark:bg-stone-900 py-8 text-xs text-stone-500 dark:text-stone-400 mt-12 transition-colors">

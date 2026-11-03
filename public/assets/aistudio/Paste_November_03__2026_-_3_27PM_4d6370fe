@@ -1,0 +1,887 @@
+# AGRIBRIDGE — OFFLINE-FIRST AGRICULTURAL AI ASSISTANT UPGRADE
+
+You are working on my existing AgriBridge Rwanda agricultural marketplace and farm-management web application.
+
+I have already built the application and hosted the business website. Your task is to **upgrade the existing application with a powerful offline-first agricultural AI assistant** without destroying, replacing, or unnecessarily restructuring the features that already work.
+
+This is an enhancement to an existing product, NOT a request to build a new application from scratch.
+
+The product is designed for farmers in Rwanda, including smallholder farmers who may have limited internet connectivity, limited digital literacy, and limited access to professional agricultural advice.
+
+The new feature should make AgriBridge useful even when a farmer has no internet connection.
+
+---
+
+# 1. MAIN OBJECTIVE
+
+Build a new section inside AgriBridge called:
+
+**AgriBridge AI — Your Farming Knowledge Companion**
+
+This assistant should help users:
+
+- Ask agricultural questions.
+- Understand crop production.
+- Learn about soil preparation and soil health.
+- Understand planting seasons and crop management.
+- Learn about pests, diseases, and possible treatments.
+- Understand irrigation and water management.
+- Learn about livestock management.
+- Understand harvesting, storage, and post-harvest handling.
+- Learn about fertilizers and responsible fertilizer use.
+- Understand agricultural business and farm budgeting.
+- Learn how to use AgriBridge's existing services.
+- Navigate to relevant features within the AgriBridge application.
+- Access agricultural knowledge in English and Kinyarwanda.
+- Continue accessing stored agricultural information without internet connectivity.
+
+The assistant should be designed around this principle:
+
+**“Your farming knowledge should not disappear when your internet connection does.”**
+
+The feature must be useful, visually polished, reliable, and technically realistic.
+
+---
+
+# 2. IMPORTANT: INSPECT THE EXISTING APPLICATION FIRST
+
+Before modifying anything:
+
+1. Inspect the existing project structure.
+2. Identify the current frontend framework, routing system, state management, database, authentication system, and styling approach.
+3. Identify all existing AgriBridge features and their actual functionality.
+4. Identify how user profiles, farm records, marketplace listings, orders, and other data are currently stored.
+5. Identify whether the application already uses a service worker, PWA configuration, IndexedDB, local storage, or an existing AI integration.
+6. Reuse existing components, design patterns, and dependencies wherever possible.
+7. Do not create duplicate features that already exist.
+8. Do not replace the existing marketplace, dashboard, farm-management system, or user authentication.
+9. Do not delete existing functionality.
+10. Do not make the application dependent on an internet connection merely to open the AI section.
+
+If a feature is currently a demonstration or uses sample data, preserve that distinction.
+
+Do not claim that a backend, database, API, or external integration exists unless you verify it in the project.
+
+---
+
+# 3. BUILD A REAL OFFLINE-FIRST ARCHITECTURE
+
+This is the most important technical requirement.
+
+Do not simply create a chatbot interface and label it “Offline AI.”
+
+The application should have three distinct layers.
+
+## Layer A — Local agricultural knowledge base
+
+Create a structured, locally available agricultural knowledge base.
+
+The knowledge base should be bundled with the application or stored locally on the user's device.
+
+It should remain accessible when the device is offline.
+
+Use a structured format such as JSON, TypeScript objects, or another format that fits the existing architecture.
+
+Organize information by:
+
+- Crop production
+- Soil health
+- Soil preparation
+- Planting and spacing
+- Seed selection
+- Fertilizer management
+- Organic farming
+- Irrigation
+- Weed management
+- Pest management
+- Crop diseases
+- Harvesting
+- Post-harvest handling
+- Storage
+- Livestock
+- Poultry
+- Farm budgeting
+- Agricultural marketing
+- Climate-smart agriculture
+- Sustainable farming
+- Rwanda-specific agricultural guidance
+- AgriBridge platform usage
+
+Each knowledge entry should contain:
+
+- A unique ID
+- Topic
+- Relevant crop or livestock category
+- Question or subject
+- Answer
+- Keywords
+- Language
+- Relevant location or regional context, where applicable
+- Source or verification status
+- Date last reviewed, where available
+
+Create a clean architecture that allows the knowledge base to be expanded in the future.
+
+Do not invent official agricultural recommendations, pesticide dosages, fertilizer rates, or statistics.
+
+Use verified agricultural references when available. If reliable references are not available during development, clearly label the relevant material as general educational guidance requiring local verification.
+
+The knowledge base should be designed so that agricultural experts can review and improve it later.
+
+---
+
+# 4. OFFLINE QUESTION-ANSWERING ENGINE
+
+The assistant must work without internet connectivity.
+
+Implement the following architecture:
+
+### First: Local knowledge retrieval
+
+When the user asks a question:
+
+1. Process the question.
+2. Search the local agricultural knowledge base.
+3. Identify relevant entries using keyword matching, text similarity, or another suitable local retrieval method.
+4. Rank the most relevant results.
+5. Return a useful answer based on the retrieved information.
+
+The retrieval system must work offline.
+
+Do not rely exclusively on a remote API for this functionality.
+
+### Second: Local AI model, where supported
+
+Investigate whether the existing application can support a compact AI model running directly inside the browser or on the user's device.
+
+Consider a suitable local inference solution, such as WebLLM, Transformers.js, or another compatible technology.
+
+Choose the most appropriate option based on:
+
+- Existing project architecture
+- Browser compatibility
+- Device memory requirements
+- Model size
+- Performance
+- Offline inference capability
+- Mobile compatibility
+- Licensing
+- User experience
+
+Do not add a large model blindly.
+
+The local model should be optional and must not prevent the application from working on low-end smartphones.
+
+If the user has no internet connection and the model has not yet been downloaded, the application should still answer questions through the local knowledge base.
+
+If a model requires an initial download, explain this clearly in the interface.
+
+The app must never falsely claim that a model is ready for offline inference when it is not.
+
+### Third: Online AI fallback
+
+When the user has internet connectivity, the application may use an existing online AI integration if one is already configured.
+
+If no integration exists, create a clean integration interface that can be connected later.
+
+Do not expose API keys in frontend code.
+
+Do not make up API endpoints.
+
+Do not create fake AI responses and present them as real model outputs.
+
+If the online AI integration is unavailable, fall back to local knowledge retrieval.
+
+---
+
+# 5. AI STATUS SYSTEM
+
+Create a visible AI status indicator.
+
+The indicator must reflect actual functionality.
+
+Use the following states:
+
+### ONLINE AI AVAILABLE
+
+The device has internet connectivity and the online AI service is reachable.
+
+### OFFLINE AI READY
+
+The device has no internet connectivity, but the local knowledge base is available and the local model is ready if installed.
+
+### LOCAL KNOWLEDGE MODE
+
+The user can ask questions and receive answers from the stored agricultural knowledge base, but a local generative model is not available.
+
+### DOWNLOADING AI MODEL
+
+The user has requested a local model download.
+
+Show actual progress where the technology supports it.
+
+### AI MODEL NOT INSTALLED
+
+The user can still access the offline knowledge base.
+
+Provide a clear option to download the model when connectivity is available.
+
+### CONNECTION LOST
+
+If the connection disappears during a conversation, automatically switch to local retrieval when possible.
+
+Do not erase the user's question.
+
+Do not make the user restart the conversation.
+
+Do not display misleading status messages.
+
+The status should update based on real connectivity, model readiness, and service availability.
+
+---
+
+# 6. DESIGN THE AI ASSISTANT INTERFACE
+
+Create a premium, polished, modern agricultural AI interface.
+
+The design should feel like a serious agricultural technology product.
+
+Use the existing AgriBridge branding and visual design.
+
+Do not replace the official AgriBridge logo.
+
+The interface should include:
+
+## Header
+
+- AgriBridge AI branding
+- Assistant name
+- Current AI status
+- Language selector
+- New conversation button
+- Access to saved conversations
+
+## Welcome section
+
+Display:
+
+“Welcome to AgriBridge AI”
+
+“Your farming knowledge companion. Ask questions, learn better farming practices, and access agricultural guidance — even when you are offline.”
+
+Display a subtle agricultural illustration or use existing visual assets.
+
+Do not clutter the screen.
+
+## Chat interface
+
+Create a responsive conversational interface.
+
+Include:
+
+- User message bubbles
+- Assistant message bubbles
+- Typing indicator when appropriate
+- Clear timestamps
+- Copy answer functionality
+- Helpful/unhelpful feedback
+- Regenerate answer only when the active AI engine supports it
+- Conversation history
+- Clear conversation button
+- Loading states
+- Error states
+- Offline states
+
+The interface must work properly on mobile phones, tablets, and desktop computers.
+
+## Input area
+
+Include:
+
+- Text input
+- Send button
+- Voice input option if supported by the existing application and browser
+- Language selection
+- Suggested questions
+- Clear offline indicator
+
+The user must be able to ask questions using ordinary language.
+
+Do not require technical prompts.
+
+---
+
+# 7. AGRICULTURAL QUICK-QUESTION CARDS
+
+Under the welcome section, display useful agricultural question cards.
+
+Examples:
+
+- “How do I improve soil fertility?”
+- “How can I control pests in my bean crops?”
+- “What causes yellow leaves on maize?”
+- “How should I store harvested beans?”
+- “How do I prepare my land for planting?”
+- “How can I improve my tomato production?”
+- “How do I manage poultry diseases?”
+- “How can I reduce farming costs?”
+- “How do I use AgriBridge to sell my produce?”
+- “How do I find agricultural suppliers?”
+
+When a user clicks a card, automatically submit the question to the assistant.
+
+These cards must work offline.
+
+Do not use fake buttons.
+
+---
+
+# 8. MAKE THE AI UNDERSTAND AGRIBRIDGE ITSELF
+
+This is a major requirement.
+
+The assistant must not only answer agricultural questions.
+
+It must also understand the AgriBridge platform.
+
+Create a dedicated AgriBridge Platform Knowledge Base.
+
+This should explain the application's actual services, features, and workflows.
+
+The assistant should be able to answer questions such as:
+
+- What is AgriBridge?
+- How does AgriBridge help farmers?
+- How do I register as a farmer?
+- How do I add my farm?
+- How do I record my crops?
+- How do I record my harvest?
+- How do I list produce for sale?
+- How do I find buyers?
+- How do I respond to buyer offers?
+- How do I find fertilizer suppliers?
+- How do I access agricultural training?
+- How do I manage my farm finances?
+- How do I use the marketplace?
+- What services does AgriBridge provide?
+- How can a community agent help me?
+- What should I do if I cannot use the platform?
+
+Use the application's real features and actual workflows.
+
+Do not invent features.
+
+If a service is planned but not operational, explain that it is planned rather than currently available.
+
+If the assistant can identify the relevant section of the application, it should provide a clear navigation action.
+
+Examples:
+
+“Open Farm Management”
+
+“Go to Marketplace”
+
+“Open Suppliers”
+
+“View Agricultural Training”
+
+“Open Farm Finances”
+
+These actions should navigate to the actual existing sections of the application.
+
+Do not create buttons that lead nowhere.
+
+If the feature does not exist, the assistant should explain that clearly and provide a useful alternative.
+
+---
+
+# 9. AGRIBRIDGE SERVICE NAVIGATION
+
+Build a system that connects AI answers to existing AgriBridge features.
+
+For example:
+
+User:
+“How do I sell my beans?”
+
+Assistant:
+“You can list your beans on the AgriBridge Marketplace. Add the crop name, available quantity, quality information, location, and asking price. Buyers can then discover your listing and contact you or submit offers, depending on the marketplace features available.”
+
+Then display a functional button:
+
+“Open Marketplace”
+
+The button must navigate to the actual marketplace.
+
+Another example:
+
+User:
+“How can I record my farming expenses?”
+
+Assistant:
+“AgriBridge provides farm-finance tools to help you organize your farming expenses and financial records.”
+
+Then display:
+
+“Open Farm Finances”
+
+The button must navigate to the existing finances section.
+
+The AI should use a centralized mapping between:
+
+- AI topic
+- Relevant application feature
+- Actual route or navigation action
+- Feature availability status
+
+Do not hardcode incorrect routes.
+
+Inspect the existing navigation system before implementing this.
+
+---
+
+# 10. RWANDA-SPECIFIC AGRICULTURAL KNOWLEDGE
+
+The platform is designed for Rwanda.
+
+The agricultural knowledge base should prioritize Rwanda-relevant guidance.
+
+Include knowledge categories covering:
+
+- Maize
+- Beans
+- Irish potatoes
+- Sweet potatoes
+- Cassava
+- Bananas
+- Rice
+- Soybeans
+- Tomatoes
+- Onions
+- Cabbage
+- Other locally relevant crops
+- Poultry
+- Cattle
+- Goats
+- Other locally relevant livestock
+
+Include relevant topics such as:
+
+- Soil fertility
+- Crop rotation
+- Intercropping
+- Planting preparation
+- Rain-fed agriculture
+- Irrigation
+- Crop pests and diseases
+- Harvesting
+- Storage
+- Agricultural marketing
+- Farm budgeting
+- Climate-smart agriculture
+
+Do not assume every farmer in Rwanda grows the same crops or has the same climate conditions.
+
+Where necessary, ask the farmer for:
+
+- District
+- Sector
+- Crop
+- Growth stage
+- Observed problem
+- Available resources
+
+Do not force the user to provide all these details before receiving a useful general answer.
+
+When precise local guidance is needed, explain why the location or crop details matter.
+
+Do not invent current weather forecasts, current market prices, or official government announcements while offline.
+
+If the information requires a live source, explain that the user needs an internet connection or a verified locally stored update.
+
+---
+
+# 11. KINYARWANDA AND LANGUAGE SUPPORT
+
+The assistant should support English and Kinyarwanda.
+
+The user should be able to:
+
+- Ask questions in English.
+- Ask questions in Kinyarwanda.
+- Receive answers in the language they selected.
+- Switch languages during a conversation.
+- Use simple agricultural terminology.
+
+Use a language selector.
+
+Default to the existing application's language preference if one is already available.
+
+Do not assume that all users are fluent in English.
+
+Prioritize simple, understandable explanations.
+
+Where appropriate, explain technical agricultural terms using simpler language.
+
+The interface should not break when Kinyarwanda text is displayed.
+
+For local AI model selection, consider language performance carefully. Do not claim that an installed model supports high-quality Kinyarwanda unless that capability is verified.
+
+---
+
+# 12. FARMER-FRIENDLY ANSWER FORMAT
+
+The AI should provide practical, structured answers.
+
+Use the following format when appropriate:
+
+**Direct answer**
+
+A short explanation of the issue.
+
+**What may be causing it**
+
+Possible causes based on the available information.
+
+**What you can do**
+
+Practical steps the farmer can take.
+
+**What to watch out for**
+
+Risks, limitations, or important precautions.
+
+**When to ask an agricultural expert**
+
+Explain when the issue needs professional assessment.
+
+Do not make every answer unnecessarily long.
+
+For simple questions, answer simply.
+
+For complicated questions, provide a structured explanation.
+
+The assistant should ask follow-up questions when they are necessary to provide accurate guidance.
+
+Do not pretend to diagnose a crop disease with certainty from a vague description.
+
+---
+
+# 13. AGRICULTURAL SAFETY AND RELIABILITY
+
+The AI must not provide dangerous or fabricated agricultural advice.
+
+For questions involving:
+
+- Pesticides
+- Herbicides
+- Fungicides
+- Fertilizers
+- Veterinary medicines
+- Animal diseases
+- Food safety
+- Chemical handling
+- Toxic substances
+
+The assistant should prioritize safety.
+
+Do not invent chemical dosages, application rates, mixing instructions, or treatment schedules.
+
+For pesticide questions, advise the user to follow the registered product label and consult a qualified agricultural professional when necessary.
+
+For serious crop disease or livestock health issues, recommend assessment by a qualified agronomist, veterinarian, or agricultural officer.
+
+The AI must distinguish between:
+
+- Verified knowledge
+- General educational guidance
+- Uncertain information
+- Information that requires current online data
+
+If the local knowledge base does not contain enough information to answer a question reliably, the assistant should say so.
+
+Do not fabricate a confident answer.
+
+---
+
+# 14. LOCAL CONVERSATION STORAGE
+
+Create a privacy-conscious local conversation history.
+
+The user should be able to:
+
+- Save conversations locally.
+- Rename conversations.
+- Delete conversations.
+- Reopen previous conversations.
+- Continue asking questions offline.
+- Clear stored conversations.
+
+Use IndexedDB or the most suitable existing local-storage architecture.
+
+Do not store unnecessary sensitive information.
+
+Do not upload offline conversations automatically when the connection returns.
+
+If synchronization is implemented, require a clear and transparent user-facing policy.
+
+Conversation history must remain accessible when the device is offline.
+
+---
+
+# 15. PWA AND OFFLINE SUPPORT
+
+Inspect the existing Progressive Web App configuration.
+
+If the application already supports PWA functionality, extend it.
+
+If it does not, implement a suitable PWA architecture without breaking the existing application.
+
+The application should support:
+
+- Offline application shell
+- Cached AI interface
+- Locally available agricultural knowledge
+- Offline conversation history
+- Appropriate service-worker caching
+- Reliable fallback pages
+- Installability where supported
+
+Cache the assets necessary for the AI interface to open without internet connectivity.
+
+Do not cache sensitive user data indiscriminately.
+
+Do not rely on localStorage alone for large agricultural datasets or model files.
+
+Use IndexedDB or an appropriate storage mechanism.
+
+Handle storage quota errors.
+
+If a local AI model is downloaded, provide:
+
+- Model name
+- Model size
+- Download status
+- Progress indicator where supported
+- Storage requirements
+- Download cancellation
+- Clear model storage option
+- Offline readiness status
+
+Do not download large model files automatically without informing the user.
+
+---
+
+# 16. LOW-END DEVICE OPTIMIZATION
+
+Many intended users may have low-end Android smartphones.
+
+Optimize the feature for:
+
+- Limited RAM
+- Limited storage
+- Slow processors
+- Intermittent internet
+- Small screens
+- Battery efficiency
+- Low bandwidth
+
+The knowledge-base retrieval system should remain lightweight.
+
+Do not require a large local AI model to access basic agricultural information.
+
+If the device cannot run a local generative model, provide the knowledge-base assistant as a fully usable alternative.
+
+Do not block the entire application while an AI model loads.
+
+Do not allow model initialization failures to crash the application.
+
+---
+
+# 17. AI PERSONALIZATION
+
+If the user has already provided farm information within AgriBridge, the assistant may use relevant information to improve its answers.
+
+Examples:
+
+- The farmer's selected crops
+- Recorded crop growth stage
+- Farm location
+- Existing farm-management records
+
+However:
+
+- Only use information the user is authorized to access.
+- Do not expose one farmer's data to another user.
+- Do not send private farm records to an online AI service without appropriate consent and security.
+- Do not assume the farmer's current crop or location.
+- Let the user know when an answer uses their saved farm information.
+- Allow the user to disable personalization.
+
+Personalization should work offline when the relevant farm records are stored locally.
+
+---
+
+# 18. DEMONSTRATION MODE AND REAL FUNCTIONALITY
+
+If any part of the AI assistant is currently simulated, label it clearly.
+
+Do not create fake live market prices.
+
+Do not create fake weather forecasts.
+
+Do not create fake online AI connectivity.
+
+Do not claim that the assistant is powered by a downloaded model unless a model is actually available.
+
+Do not claim that the assistant can perform marketplace transactions unless the relevant workflow exists.
+
+If a service is not implemented, provide a transparent explanation.
+
+The interface should distinguish between:
+
+- Offline agricultural knowledge
+- Local AI inference
+- Online AI assistance
+- Live external data
+- Demonstration data
+
+---
+
+# 19. TESTING REQUIREMENTS
+
+After implementing the feature, test it thoroughly.
+
+Test the following scenarios:
+
+### Scenario A — Internet available
+
+- Open AgriBridge AI.
+- Ask an agricultural question.
+- Verify that the selected AI engine works.
+- Verify that the answer is displayed correctly.
+
+### Scenario B — Internet disconnected
+
+- Disconnect the internet.
+- Open AgriBridge AI.
+- Ask a question available in the local knowledge base.
+- Verify that the assistant answers without an internet connection.
+
+### Scenario C — Unknown question while offline
+
+- Ask a question that is not covered by the knowledge base.
+- Verify that the assistant does not fabricate an answer.
+- Verify that it offers a useful alternative.
+
+### Scenario D — Connection lost during conversation
+
+- Begin a conversation online.
+- Disconnect the internet.
+- Ask another question.
+- Verify that the assistant switches to the available offline engine without losing the conversation.
+
+### Scenario E — Local model unavailable
+
+- Disable or remove the local model.
+- Verify that local knowledge retrieval still works.
+
+### Scenario F — AgriBridge platform question
+
+- Ask how to list produce.
+- Verify that the assistant explains the actual marketplace workflow.
+- Verify that the navigation button opens the real marketplace section.
+
+### Scenario G — Kinyarwanda
+
+- Ask an agricultural question in Kinyarwanda.
+- Verify that the response language is handled correctly.
+- Verify that the interface remains readable.
+
+### Scenario H — Mobile device
+
+- Test the interface on a narrow mobile viewport.
+- Verify that the input, chat messages, status indicator, and quick-question cards are usable.
+
+### Scenario I — Dangerous or uncertain agricultural advice
+
+- Ask about pesticide dosage.
+- Ask about a serious livestock disease.
+- Ask about an uncertain crop diagnosis.
+- Verify that the assistant follows the safety requirements.
+
+### Scenario J — Storage
+
+- Save a conversation.
+- Reload the application.
+- Disconnect the internet.
+- Verify that the conversation remains available.
+- Delete the conversation and verify that it is removed.
+
+---
+
+# 20. DESIGN QUALITY
+
+The final design should feel like an advanced agricultural technology platform.
+
+Use the existing AgriBridge design system.
+
+Prioritize:
+
+- Clean typography
+- Excellent spacing
+- Consistent colors
+- Smooth but subtle transitions
+- Responsive layouts
+- Clear status indicators
+- Accessible controls
+- Good contrast
+- Readable Kinyarwanda text
+- Minimal clutter
+
+Do not make the assistant look like a generic chatbot template.
+
+The agricultural identity should be visible but professional.
+
+Use the existing AgriBridge logo and branding.
+
+---
+
+# 21. FINAL IMPLEMENTATION REQUIREMENTS
+
+Implement the feature directly inside the existing AgriBridge application.
+
+Do not merely provide a design mockup.
+
+Do not create a disconnected standalone chatbot.
+
+Do not rebuild the entire application.
+
+Do not remove existing sections.
+
+Do not replace the current database or authentication system without a clear technical necessity.
+
+Do not add unnecessary dependencies.
+
+Do not introduce fake API integrations.
+
+Do not hardcode secrets.
+
+Do not claim that a feature works offline unless it has been implemented and tested.
+
+If a requirement cannot be completed with the current project architecture, explain the limitation and implement the best reliable alternative.
+
+After implementation, provide a concise technical summary covering:
+
+1. What was added.
+2. Which files were modified.
+3. How the offline knowledge base works.
+4. Whether a local generative AI model was implemented.
+5. Whether an initial model download is required.
+6. Which features work without internet.
+7. Which features still require internet.
+8. What was tested.
+9. Any remaining limitations.
+10. How to test the application offline.
+
+**The ultimate goal is to make AgriBridge a dependable agricultural companion for farmers, even in areas where internet connectivity is unreliable or unavailable.**
