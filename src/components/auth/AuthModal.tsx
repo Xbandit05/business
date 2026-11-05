@@ -197,7 +197,7 @@ export const AuthModal: React.FC = () => {
 
     // Default full name if empty
     if (!fullName) {
-      if (selectedGroup === 'seller') setFullName('Jean-Damascene Niyonzima');
+      if (selectedGroup === 'seller') setFullName('IDRIS Agaba Otin');
       else if (selectedGroup === 'buyer') setFullName('Clarisse Umutoni');
       else if (selectedGroup === 'supplier') setFullName('Aphrodis Mukunzi');
       else if (selectedGroup === 'agent') setFullName('Emmanuel Habimana');
@@ -815,7 +815,7 @@ export const AuthModal: React.FC = () => {
                     required
                     value={fullName}
                     onChange={(e) => setFullName(e.target.value)}
-                    placeholder="e.g. Jean-Damascene Niyonzima"
+                    placeholder="e.g. IDRIS Agaba Otin"
                     className="w-full px-3 py-2 bg-stone-50 dark:bg-stone-800 border border-stone-300 dark:border-stone-700 rounded-lg text-stone-900 dark:text-stone-100 text-xs"
                   />
                 </div>

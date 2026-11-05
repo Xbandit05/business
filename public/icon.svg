@@ -1,8 +1,86 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="none">
-  <rect width="512" height="512" rx="128" fill="#064e3b" />
-  <circle cx="256" cy="256" r="210" fill="#047857" opacity="0.3" />
-  <path d="M256 380 V220" stroke="#a7f3d0" stroke-width="28" stroke-linecap="round" />
-  <path d="M256 260 C230 200, 150 190, 130 230 C 120 270, 200 300, 256 260 Z" fill="#34d399" />
-  <path d="M256 230 C280 160, 370 150, 390 190 C 400 240, 310 270, 256 230 Z" fill="#10b981" />
-  <circle cx="256" cy="380" r="18" fill="#a7f3d0" />
+  <!-- AgriBridge Rwanda - Official Standalone Bridge Brand Icon -->
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#064e3b" />
+      <stop offset="100%" stop-color="#022c22" />
+    </linearGradient>
+    <radialGradient id="sunGlow" cx="50%" cy="45%" r="40%">
+      <stop offset="0%" stop-color="#10b981" stop-opacity="0.35" />
+      <stop offset="100%" stop-color="#064e3b" stop-opacity="0" />
+    </radialGradient>
+    <linearGradient id="bridgeGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#6ee7b7" />
+      <stop offset="50%" stop-color="#34d399" />
+      <stop offset="100%" stop-color="#10b981" />
+    </linearGradient>
+    <linearGradient id="cableGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#a7f3d0" />
+      <stop offset="50%" stop-color="#ecfdf5" />
+      <stop offset="100%" stop-color="#a7f3d0" />
+    </linearGradient>
+  </defs>
+
+  <!-- Squircle App Container -->
+  <rect width="512" height="512" rx="128" fill="url(#bgGrad)" />
+  <circle cx="256" cy="240" r="190" fill="url(#sunGlow)" />
+
+  <!-- Main Suspension Arch Cable -->
+  <path
+    d="M 68 310 C 110 200, 160 110, 190 110 C 220 110, 235 220, 256 220 C 277 220, 292 110, 322 110 C 352 110, 402 200, 444 310"
+    stroke="url(#cableGrad)"
+    stroke-width="18"
+    stroke-linecap="round"
+  />
+
+  <!-- Left Main Tower -->
+  <line x1="190" y1="95" x2="190" y2="330" stroke="url(#bridgeGrad)" stroke-width="22" stroke-linecap="round" />
+  <line x1="190" y1="185" x2="216" y2="185" stroke="#a7f3d0" stroke-width="12" stroke-linecap="round" />
+  <circle cx="190" cy="95" r="14" fill="#ecfdf5" />
+
+  <!-- Right Main Tower -->
+  <line x1="322" y1="95" x2="322" y2="330" stroke="url(#bridgeGrad)" stroke-width="22" stroke-linecap="round" />
+  <line x1="296" y1="185" x2="322" y2="185" stroke="#a7f3d0" stroke-width="12" stroke-linecap="round" />
+  <circle cx="322" cy="95" r="14" fill="#ecfdf5" />
+
+  <!-- Suspender Cables -->
+  <line x1="130" y1="230" x2="130" y2="310" stroke="#a7f3d0" stroke-width="10" stroke-linecap="round" opacity="0.8" />
+  <line x1="225" y1="205" x2="225" y2="310" stroke="#a7f3d0" stroke-width="10" stroke-linecap="round" opacity="0.8" />
+  <line x1="256" y1="220" x2="256" y2="310" stroke="#ecfdf5" stroke-width="10" stroke-linecap="round" opacity="0.8" />
+  <line x1="287" y1="205" x2="287" y2="310" stroke="#a7f3d0" stroke-width="10" stroke-linecap="round" opacity="0.8" />
+  <line x1="382" y1="230" x2="382" y2="310" stroke="#a7f3d0" stroke-width="10" stroke-linecap="round" opacity="0.8" />
+
+  <!-- Solid Horizontal Roadway (Bridge Deck) -->
+  <rect x="56" y="306" width="400" height="30" rx="15" fill="#ecfdf5" />
+  <rect x="66" y="318" width="380" height="8" rx="4" fill="#047857" opacity="0.5" />
+
+  <!-- Supporting Piers & River Basin Foundation -->
+  <rect x="80" y="336" width="36" height="50" rx="8" fill="#10b981" opacity="0.9" />
+  <rect x="176" y="336" width="28" height="50" rx="6" fill="#10b981" opacity="0.9" />
+  <rect x="308" y="336" width="28" height="50" rx="6" fill="#10b981" opacity="0.9" />
+  <rect x="396" y="336" width="36" height="50" rx="8" fill="#10b981" opacity="0.9" />
+
+  <!-- Supporting River Arch -->
+  <path
+    d="M 96 390 C 160 300, 352 300, 416 390"
+    stroke="url(#bridgeGrad)"
+    stroke-width="22"
+    stroke-linecap="round"
+  />
+
+  <!-- Water Flow Ripples -->
+  <path
+    d="M 150 420 C 190 405, 220 425, 256 415 C 292 405, 322 425, 362 415"
+    stroke="#34d399"
+    stroke-width="12"
+    stroke-linecap="round"
+    opacity="0.75"
+  />
+  <path
+    d="M 190 445 C 220 435, 240 450, 270 442 C 300 435, 320 448, 340 442"
+    stroke="#10b981"
+    stroke-width="8"
+    stroke-linecap="round"
+    opacity="0.5"
+  />
 </svg>

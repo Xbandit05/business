@@ -29,6 +29,7 @@ import {
 } from './components/modals/Modals.tsx';
 import { CropCycle, ProduceListing } from './types/index.ts';
 import { Sprout, Heart } from 'lucide-react';
+import { AgriBridgeBrandIcon } from './components/common/AgriBridgeBrandIcon.tsx';
 import { FounderWatermark } from './components/common/FounderWatermark.tsx';
 import { AboutFoundersModal } from './components/modals/AboutFoundersModal.tsx';
 import { SocialOutreachBar } from './components/common/SocialOutreachBar.tsx';
@@ -182,7 +183,7 @@ function AgriBridgeDashboard() {
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
             <div className="flex items-center gap-2.5">
               <div className="w-7 h-7 rounded-lg bg-emerald-800 flex items-center justify-center text-emerald-200 shadow-xs">
-                <Sprout className="w-4 h-4 text-emerald-300" />
+                <AgriBridgeBrandIcon className="w-4 h-4 text-emerald-300" />
               </div>
               <div className="flex flex-col sm:flex-row sm:items-baseline gap-1 sm:gap-2.5 text-center sm:text-left">
                 <span className="font-bold text-stone-900 dark:text-stone-100 text-sm tracking-tight">

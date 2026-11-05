@@ -1,6 +1,7 @@
 import React from 'react';
 import { FounderWatermark } from '../common/FounderWatermark.tsx';
 import { Sprout, X, Heart, Sparkles, MapPin, ShieldCheck, Leaf } from 'lucide-react';
+import { AgriBridgeBrandIcon } from '../common/AgriBridgeBrandIcon.tsx';
 import { useLanguage } from '../../context/LanguageContext.tsx';
 
 interface AboutFoundersModalProps {
@@ -25,7 +26,7 @@ export const AboutFoundersModal: React.FC<AboutFoundersModalProps> = ({ isOpen, 
         <div className="flex items-center justify-between px-6 py-4 border-b border-stone-100 dark:border-stone-800">
           <div className="flex items-center gap-2.5">
             <div className="w-8 h-8 rounded-lg bg-emerald-800 flex items-center justify-center text-emerald-100 shadow-xs">
-              <Sprout className="w-4 h-4 text-emerald-300" />
+              <AgriBridgeBrandIcon className="w-4 h-4 text-emerald-300" />
             </div>
             <div>
               <h2 id="founder-modal-title" className="text-sm font-bold text-stone-900 dark:text-stone-100">
@@ -105,7 +106,7 @@ export const AboutFoundersModal: React.FC<AboutFoundersModalProps> = ({ isOpen, 
                   className="flex items-center justify-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-700 text-stone-800 dark:text-stone-200 hover:border-emerald-500 text-xs font-medium transition-colors"
                 >
                   <div className="w-3.5 h-3.5 rounded-xs bg-emerald-800 flex items-center justify-center text-emerald-200 shrink-0">
-                    <Sprout className="w-2.5 h-2.5 text-emerald-300" />
+                    <AgriBridgeBrandIcon className="w-2.5 h-2.5 text-emerald-300" />
                   </div>
                   <span>Reach on X</span>
                 </a>
@@ -116,7 +117,7 @@ export const AboutFoundersModal: React.FC<AboutFoundersModalProps> = ({ isOpen, 
                   className="flex items-center justify-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-700 text-stone-800 dark:text-stone-200 hover:border-emerald-500 text-xs font-medium transition-colors"
                 >
                   <div className="w-3.5 h-3.5 rounded-xs bg-emerald-800 flex items-center justify-center text-emerald-200 shrink-0">
-                    <Sprout className="w-2.5 h-2.5 text-emerald-300" />
+                    <AgriBridgeBrandIcon className="w-2.5 h-2.5 text-emerald-300" />
                   </div>
                   <span>@xbandit._</span>
                 </a>
@@ -127,7 +128,7 @@ export const AboutFoundersModal: React.FC<AboutFoundersModalProps> = ({ isOpen, 
                   className="flex items-center justify-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-700 text-stone-800 dark:text-stone-200 hover:border-emerald-500 text-xs font-medium transition-colors"
                 >
                   <div className="w-3.5 h-3.5 rounded-xs bg-emerald-800 flex items-center justify-center text-emerald-200 shrink-0">
-                    <Sprout className="w-2.5 h-2.5 text-emerald-300" />
+                    <AgriBridgeBrandIcon className="w-2.5 h-2.5 text-emerald-300" />
                   </div>
                   <span>WhatsApp Line</span>
                 </a>
@@ -138,7 +139,7 @@ export const AboutFoundersModal: React.FC<AboutFoundersModalProps> = ({ isOpen, 
                   className="flex items-center justify-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-700 text-stone-800 dark:text-stone-200 hover:border-emerald-500 text-xs font-medium transition-colors"
                 >
                   <div className="w-3.5 h-3.5 rounded-xs bg-emerald-800 flex items-center justify-center text-emerald-200 shrink-0">
-                    <Sprout className="w-2.5 h-2.5 text-emerald-300" />
+                    <AgriBridgeBrandIcon className="w-2.5 h-2.5 text-emerald-300" />
                   </div>
                   <span>LinkedIn</span>
                 </a>

@@ -22,7 +22,7 @@ export const RegisterFarmModal: React.FC<{
   onClose: () => void;
 }> = ({ isOpen, onClose }) => {
   const { t } = useLanguage();
-  const { addFarm } = useApp();
+  const { addFarm, currentUser } = useApp();
 
   const districts = getAllDistricts();
   const [district, setDistrict] = useState<string>('Nyagatare');
@@ -50,8 +50,8 @@ export const RegisterFarmModal: React.FC<{
     if (!name.trim()) return;
 
     addFarm({
-      farmerId: 'current_user',
-      farmerName: 'Jean-Damascene Niyonzima',
+      farmerId: currentUser?.id || 'user_farmer_1',
+      farmerName: currentUser?.fullName || 'IDRIS Agaba Otin',
       name: name.trim(),
       district,
       sector,
@@ -429,7 +429,7 @@ export const ListProduceModal: React.FC<{
   prefillCycle?: CropCycle | null;
 }> = ({ isOpen, onClose, prefillCycle }) => {
   const { t } = useLanguage();
-  const { createListing, farms } = useApp();
+  const { createListing, farms, currentUser } = useApp();
 
   const [cropType, setCropType] = useState<CropType>('maize');
   const [cropName, setCropName] = useState('');
@@ -478,10 +478,10 @@ export const ListProduceModal: React.FC<{
     if (!cropName.trim()) return;
 
     createListing({
-      farmerId: 'current_user',
-      farmerName: 'Jean-Damascene Niyonzima',
-      farmerPhone: '+250 788 123 456',
-      cooperativeName: 'COOPAMA Mimuri Maize Union',
+      farmerId: currentUser?.id || 'user_farmer_1',
+      farmerName: currentUser?.fullName || 'IDRIS Agaba Otin',
+      farmerPhone: currentUser?.phoneNumber || '+250 788 123 456',
+      cooperativeName: currentUser?.cooperativeName || 'COOPAMA Mimuri Maize Union',
       cropCycleId: prefillCycle?.id,
       cropType,
       cropName: cropName.trim(),

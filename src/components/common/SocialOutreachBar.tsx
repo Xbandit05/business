@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Sprout, ExternalLink, MessageCircle, Send, Check, Copy } from 'lucide-react';
+import { AgriBridgeBrandIcon } from './AgriBridgeBrandIcon.tsx';
 
 export interface SocialChannel {
   id: string;
@@ -102,7 +103,7 @@ const PlatformIcon: React.FC<{ platform: SocialChannel['platform']; className?: 
         </svg>
       );
     default:
-      return <Sprout className={className} />;
+      return <AgriBridgeBrandIcon className={className} />;
   }
 };
 
@@ -123,9 +124,9 @@ export const SocialOutreachBar: React.FC = () => {
       {/* Top Banner introducing Official Channels */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-stone-200 dark:border-stone-800">
         <div className="flex items-center gap-2">
-          {/* AgriBridge Sprout Emblem */}
+          {/* AgriBridge Bridge Emblem */}
           <div className="w-6 h-6 rounded-md bg-emerald-800 flex items-center justify-center text-emerald-200 shadow-2xs">
-            <Sprout className="w-3.5 h-3.5 text-emerald-300" />
+            <AgriBridgeBrandIcon className="w-3.5 h-3.5 text-emerald-300" />
           </div>
           <div>
             <h3 className="text-xs font-bold uppercase tracking-wider text-stone-900 dark:text-stone-100">

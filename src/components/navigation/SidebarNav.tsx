@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useLanguage } from '../../context/LanguageContext.tsx';
 import { useApp } from '../../context/AppContext.tsx';
 import { ActiveTabType } from '../Navbar.tsx';
+import { AgriBridgeBrandIcon } from '../common/AgriBridgeBrandIcon.tsx';
 import {
   LayoutDashboard,
   Sprout,
@@ -116,7 +117,7 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({
           title="Go to Dashboard"
         >
           <div className="w-9 h-9 rounded-xl bg-emerald-800 flex items-center justify-center text-emerald-100 shadow-xs group-hover:bg-emerald-900 transition-colors shrink-0">
-            <Sprout className="w-5 h-5 text-emerald-300" />
+            <AgriBridgeBrandIcon className="w-5 h-5 text-emerald-300" />
           </div>
           {!isCollapsed && (
             <div className="truncate">

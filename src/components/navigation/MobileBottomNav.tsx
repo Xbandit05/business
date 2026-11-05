@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useLanguage } from '../../context/LanguageContext.tsx';
 import { useApp } from '../../context/AppContext.tsx';
 import { ActiveTabType } from '../Navbar.tsx';
+import { AgriBridgeBrandIcon } from '../common/AgriBridgeBrandIcon.tsx';
 import {
   LayoutDashboard,
   Sprout,
@@ -198,8 +199,8 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
             {/* Header */}
             <div className="p-4 border-b border-stone-200 dark:border-stone-800 flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <div className="w-7 h-7 rounded-lg bg-emerald-800 flex items-center justify-center text-emerald-200">
-                  <Sprout className="w-4 h-4" />
+                <div className="w-7 h-7 rounded-lg bg-emerald-800 flex items-center justify-center text-emerald-200 shadow-xs">
+                  <AgriBridgeBrandIcon className="w-4 h-4 text-emerald-300" />
                 </div>
                 <h3 className="text-sm font-bold text-stone-900 dark:text-stone-100">
                   {language === 'rw' ? 'Ibindi Byiciro bya AgriBridge' : 'AgriBridge Sections & Tools'}

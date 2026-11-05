@@ -144,11 +144,25 @@ const STORAGE_KEYS = {
 };
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  // Current logged in user (defaults to Demo Farmer Jean-Damascene Niyonzima)
+  // Current logged in user (defaults to Demo Farmer IDRIS Agaba Otin)
   const [currentUser, setCurrentUser] = useState<UserProfile>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEYS.CURRENT_USER);
-      return saved ? JSON.parse(saved) : DEMO_USERS[0];
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        // Automatically migrate legacy demo farmer name to IDRIS Agaba Otin
+        if (
+          parsed?.id === 'user_farmer_1' ||
+          parsed?.fullName?.includes('Jean-Damascene') ||
+          parsed?.fullName?.includes('Jean Damascene')
+        ) {
+          parsed.fullName = DEMO_USERS[0].fullName;
+          parsed.email = DEMO_USERS[0].email;
+          localStorage.setItem(STORAGE_KEYS.CURRENT_USER, JSON.stringify(parsed));
+        }
+        return parsed;
+      }
+      return DEMO_USERS[0];
     } catch {
       return DEMO_USERS[0];
     }

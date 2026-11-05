@@ -14,6 +14,7 @@ import {
 import { PWAInstallButton } from './common/PWAInstallButton.tsx';
 import { CompactDataStatusIndicator } from './common/CompactDataStatusIndicator.tsx';
 import { CompactAiStatusIndicator } from './common/CompactAiStatusIndicator.tsx';
+import { AgriBridgeBrandIcon } from './common/AgriBridgeBrandIcon.tsx';
 
 export type ActiveTabType =
   | 'dashboard'
@@ -101,7 +102,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               className="lg:hidden flex items-center gap-2 text-left group cursor-pointer"
             >
               <div className="w-8 h-8 rounded-lg bg-emerald-800 flex items-center justify-center text-emerald-100 shadow-xs">
-                <Sprout className="w-4 h-4 text-emerald-300" />
+                <AgriBridgeBrandIcon className="w-4 h-4 text-emerald-300" />
               </div>
               <div>
                 <span className="text-sm font-bold tracking-tight text-stone-900 dark:text-stone-50 leading-tight block">

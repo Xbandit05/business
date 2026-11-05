@@ -88,8 +88,8 @@ export const NYAGATARE_SECTORS: SectorInfo[] = [
 export const DEMO_USERS: UserProfile[] = [
   {
     id: 'user_farmer_1',
-    fullName: 'Jean-Damascene Niyonzima',
-    email: 'niyonzima.damascene@agribridge.rw',
+    fullName: 'IDRIS Agaba Otin',
+    email: 'idris.agaba@agribridge.rw',
     phoneNumber: '+250 788 123 456',
     role: 'farmer',
     category: 'seller',
@@ -170,7 +170,7 @@ export const DEMO_FARMS: Farm[] = [
   {
     id: 'farm_demo_1',
     farmerId: 'user_farmer_1',
-    farmerName: 'Jean-Damascene Niyonzima',
+    farmerName: 'IDRIS Agaba Otin',
     name: 'Umurima w\'Icyerekezo (Mimuri)',
     sector: 'Mimuri',
     cell: 'Mahoro Cell',
@@ -183,7 +183,7 @@ export const DEMO_FARMS: Farm[] = [
   {
     id: 'farm_demo_2',
     farmerId: 'user_farmer_1',
-    farmerName: 'Jean-Damascene Niyonzima',
+    farmerName: 'IDRIS Agaba Otin',
     name: 'Rukomo Valley Wetland Plot',
     sector: 'Rukomo',
     cell: 'Kinyami Cell',
@@ -278,7 +278,7 @@ export const DEMO_LISTINGS: ProduceListing[] = [
   {
     id: 'listing_demo_1',
     farmerId: 'user_farmer_1',
-    farmerName: 'Jean-Damascene Niyonzima',
+    farmerName: 'IDRIS Agaba Otin',
     farmerPhone: '+250 788 123 456',
     cooperativeName: 'COOPAMA Mimuri Maize Union',
     cropCycleId: 'cycle_demo_2',
@@ -300,7 +300,7 @@ export const DEMO_LISTINGS: ProduceListing[] = [
   {
     id: 'listing_demo_2',
     farmerId: 'user_farmer_1',
-    farmerName: 'Jean-Damascene Niyonzima',
+    farmerName: 'IDRIS Agaba Otin',
     farmerPhone: '+250 788 123 456',
     cooperativeName: 'COOPAMA Mimuri Maize Union',
     cropCycleId: 'cycle_demo_1',
@@ -348,7 +348,7 @@ export const DEMO_OFFERS: BuyerOffer[] = [
     listingId: 'listing_demo_2',
     listingCropName: 'White Grain Maize (Pre-Harvest Booking)',
     farmerId: 'user_farmer_1',
-    farmerName: 'Jean-Damascene Niyonzima',
+    farmerName: 'IDRIS Agaba Otin',
     buyerId: 'user_buyer_1',
     buyerName: 'Clarisse Umutoni',
     buyerPhone: '+250 788 654 321',
@@ -371,7 +371,7 @@ export const DEMO_OFFERS: BuyerOffer[] = [
     listingId: 'listing_demo_1',
     listingCropName: 'Dry Red Kidney Beans (RWR 2245)',
     farmerId: 'user_farmer_1',
-    farmerName: 'Jean-Damascene Niyonzima',
+    farmerName: 'IDRIS Agaba Otin',
     buyerId: 'user_buyer_1',
     buyerName: 'Clarisse Umutoni',
     buyerPhone: '+250 788 654 321',
@@ -398,7 +398,7 @@ export const DEMO_ORDERS: Order[] = [
     cropName: 'Dry Red Kidney Beans (RWR 2245)',
     variety: 'RWR 2245 Biofortified',
     farmerId: 'user_farmer_1',
-    farmerName: 'Jean-Damascene Niyonzima',
+    farmerName: 'IDRIS Agaba Otin',
     farmerPhone: '+250 788 123 456',
     buyerId: 'user_buyer_1',
     buyerName: 'Clarisse Umutoni',

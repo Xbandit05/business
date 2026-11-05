@@ -15,6 +15,7 @@ import {
   deleteConversation,
   clearAllConversations,
 } from '../../utils/conversationStorage.ts';
+import { AgriBridgeBrandIcon } from '../common/AgriBridgeBrandIcon.tsx';
 import {
   Sprout,
   Send,
@@ -478,7 +479,7 @@ export const AgriBridgeAiView: React.FC<AgriBridgeAiViewProps> = ({
       <header className="px-4 sm:px-6 py-3.5 border-b border-stone-200 dark:border-stone-800 bg-stone-50/80 dark:bg-stone-900/80 backdrop-blur-md flex flex-wrap items-center justify-between gap-3 shrink-0">
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-xl bg-emerald-800 flex items-center justify-center text-emerald-100 shadow-xs">
-            <Sprout className="w-5 h-5 text-emerald-300" />
+            <AgriBridgeBrandIcon className="w-5 h-5 text-emerald-300" />
           </div>
           <div>
             <div className="flex items-center gap-2">
@@ -597,7 +598,7 @@ export const AgriBridgeAiView: React.FC<AgriBridgeAiViewProps> = ({
             {messages.length === 0 && (
               <div className="max-w-2xl mx-auto py-6 space-y-6 text-center animate-in fade-in duration-300">
                 <div className="w-14 h-14 mx-auto rounded-2xl bg-emerald-800 flex items-center justify-center text-emerald-200 shadow-md">
-                  <Sprout className="w-8 h-8 text-emerald-300" />
+                  <AgriBridgeBrandIcon className="w-8 h-8 text-emerald-300" />
                 </div>
                 <div className="space-y-2">
                   <h3 className="text-xl sm:text-2xl font-bold text-stone-900 dark:text-stone-50">
@@ -677,7 +678,7 @@ export const AgriBridgeAiView: React.FC<AgriBridgeAiViewProps> = ({
                     {isUser ? (
                       <span className="text-xs font-bold uppercase">{currentUser.fullName?.[0] || 'U'}</span>
                     ) : (
-                      <Sprout className="w-4 h-4 text-emerald-300" />
+                      <AgriBridgeBrandIcon className="w-4 h-4 text-emerald-300" />
                     )}
                   </div>
 
@@ -784,7 +785,7 @@ export const AgriBridgeAiView: React.FC<AgriBridgeAiViewProps> = ({
             {isProcessing && (
               <div className="flex items-center gap-3 text-xs text-stone-500 animate-pulse">
                 <div className="w-8 h-8 rounded-lg bg-emerald-800/80 flex items-center justify-center text-emerald-200">
-                  <Sprout className="w-4 h-4 text-emerald-300" />
+                  <AgriBridgeBrandIcon className="w-4 h-4 text-emerald-300" />
                 </div>
                 <div className="p-3 bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 rounded-xl rounded-tl-xs">
                   <span>{language === 'rw' ? 'Gusesengura ubumenyi bw\'ubuhinzi...' : 'Analyzing agricultural knowledge base...'}</span>

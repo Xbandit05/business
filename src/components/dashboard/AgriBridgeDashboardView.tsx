@@ -228,7 +228,7 @@ export const AgriBridgeDashboardView: React.FC<AgriBridgeDashboardViewProps> = (
               </span>
             </div>
 
-            <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-stone-900 dark:text-stone-50">
+            <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-stone-900 dark:text-stone-50 break-words">
               {isRw ? `Murakaza neza, ${userDisplayName}` : `Welcome back, ${userDisplayName}`}
             </h1>
             <p className="text-xs sm:text-sm text-stone-600 dark:text-stone-400">
