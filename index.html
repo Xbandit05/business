@@ -33,15 +33,29 @@
         } catch (e) {}
 
         // Service Worker Registration for 100% Offline App Shell & Knowledge
-        // Avoid running in cross-origin preview iframes to prevent extension message channel timeouts
+        // Unregister inside preview iframes to prevent Chrome extension message timeouts
         try {
-          var isInsideIframe = window.self !== window.top;
-          if ('serviceWorker' in navigator && !isInsideIframe) {
-            window.addEventListener('load', function() {
-              navigator.serviceWorker.register('/sw.js').then(function(reg) {
-                console.log('AgriBridge Offline SW registered:', reg.scope);
+          var isInsideIframe = false;
+          try {
+            isInsideIframe = window.self !== window.top;
+          } catch (crossOriginErr) {
+            isInsideIframe = true;
+          }
+
+          if ('serviceWorker' in navigator) {
+            if (isInsideIframe) {
+              navigator.serviceWorker.getRegistrations().then(function(registrations) {
+                for (var i = 0; i < registrations.length; i++) {
+                  registrations[i].unregister();
+                }
               }).catch(function() {});
-            });
+            } else {
+              window.addEventListener('load', function() {
+                navigator.serviceWorker.register('/sw.js').then(function(reg) {
+                  console.log('AgriBridge Offline SW registered:', reg.scope);
+                }).catch(function() {});
+              });
+            }
           }
         } catch (e) {}
       })();

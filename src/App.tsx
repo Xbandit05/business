@@ -34,12 +34,15 @@ import { AboutFoundersModal } from './components/modals/AboutFoundersModal.tsx';
 import { SocialOutreachBar } from './components/common/SocialOutreachBar.tsx';
 import { AgriBridgeAiView } from './components/ai/AgriBridgeAiView.tsx';
 import { OfflineIndicator } from './components/common/OfflineIndicator.tsx';
+import { SidebarNav } from './components/navigation/SidebarNav.tsx';
+import { MobileBottomNav } from './components/navigation/MobileBottomNav.tsx';
+import { AgriBridgeDashboardView } from './components/dashboard/AgriBridgeDashboardView.tsx';
 
 function AgriBridgeDashboard() {
   const { role } = useApp();
   const { t } = useLanguage();
 
-  const [activeTab, setActiveTab] = useState<ActiveTabType>('farmer');
+  const [activeTab, setActiveTab] = useState<ActiveTabType>('dashboard');
 
   // Modal triggers
   const [isFarmModalOpen, setIsFarmModalOpen] = useState(false);
@@ -64,61 +67,79 @@ function AgriBridgeDashboard() {
   };
 
   return (
-    <div className="relative min-h-screen flex flex-col bg-stone-50 dark:bg-stone-950 text-stone-900 dark:text-stone-100 transition-colors">
+    <div className="relative min-h-screen flex bg-stone-50 dark:bg-stone-950 text-stone-900 dark:text-stone-100 transition-colors">
       {/* Subtle Botanical Calligraphy Background Watermark (3-5% Opacity) */}
       <FounderWatermark variant="subtle-watermark" />
 
-      {/* Top Navbar */}
-      <Navbar
+      {/* Desktop Collapsible Sidebar */}
+      <SidebarNav
         activeTab={activeTab}
         setActiveTab={setActiveTab}
-        onOpenNewPlotModal={() => setIsPlotModalOpen(true)}
-        onOpenNewListingModal={handleOpenBlankListing}
         onOpenAboutFounders={() => setIsAboutFoundersOpen(true)}
+        onOpenNewListingModal={handleOpenBlankListing}
       />
 
-      {/* Transparency & Demo Filter Banner */}
-      <DemoDisclaimerBanner />
+      {/* Main Content Column */}
+      <div className="flex-1 flex flex-col min-w-0 min-h-screen">
+        {/* Top Navbar */}
+        <Navbar
+          activeTab={activeTab}
+          setActiveTab={setActiveTab}
+          onOpenNewPlotModal={() => setIsPlotModalOpen(true)}
+          onOpenNewListingModal={handleOpenBlankListing}
+          onOpenAboutFounders={() => setIsAboutFoundersOpen(true)}
+        />
 
-      {/* Main View Container */}
-      <main className="relative z-10 flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {activeTab === 'farmer' && (
-          <FarmAndPlotManager
-            onOpenNewFarmModal={() => setIsFarmModalOpen(true)}
-            onOpenNewPlotModal={() => setIsPlotModalOpen(true)}
-            onOpenNewListingWithCycle={handleOpenListingWithCycle}
-            onOpenAiAssistant={() => setActiveTab('ai')}
-          />
-        )}
+        {/* Main View Container */}
+        <main className="relative z-10 flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 pb-24 lg:pb-8">
+          {activeTab === 'dashboard' && (
+            <AgriBridgeDashboardView
+              onNavigateTab={(tab) => setActiveTab(tab)}
+              onOpenNewListingModal={handleOpenBlankListing}
+              onOpenNewPlotModal={() => setIsPlotModalOpen(true)}
+              onOpenNewFarmModal={() => setIsFarmModalOpen(true)}
+              onOpenAboutFounders={() => setIsAboutFoundersOpen(true)}
+            />
+          )}
 
-        {activeTab === 'marketplace' && (
-          <MarketplaceView onSelectListingForOffer={handleSelectListingForOffer} />
-        )}
+          {activeTab === 'farmer' && (
+            <FarmAndPlotManager
+              onOpenNewFarmModal={() => setIsFarmModalOpen(true)}
+              onOpenNewPlotModal={() => setIsPlotModalOpen(true)}
+              onOpenNewListingWithCycle={handleOpenListingWithCycle}
+              onOpenAiAssistant={() => setActiveTab('ai')}
+            />
+          )}
 
-        {activeTab === 'ai' && (
-          <AgriBridgeAiView
-            onNavigateTab={(tab) => setActiveTab(tab)}
-            onOpenNewPlotModal={() => setIsPlotModalOpen(true)}
-            onOpenNewListingModal={handleOpenBlankListing}
-          />
-        )}
+          {activeTab === 'marketplace' && (
+            <MarketplaceView onSelectListingForOffer={handleSelectListingForOffer} />
+          )}
 
-        {activeTab === 'offers' && <FarmerOfferManager />}
+          {activeTab === 'ai' && (
+            <AgriBridgeAiView
+              onNavigateTab={(tab) => setActiveTab(tab)}
+              onOpenNewPlotModal={() => setIsPlotModalOpen(true)}
+              onOpenNewListingModal={handleOpenBlankListing}
+            />
+          )}
 
-        {activeTab === 'orders' && <OrdersView />}
+          {activeTab === 'offers' && <FarmerOfferManager />}
 
-        {activeTab === 'finance' && <FarmFinanceLedger />}
+          {activeTab === 'orders' && <OrdersView />}
 
-        {activeTab === 'directory' && <SupplierExpertDirectory />}
+          {activeTab === 'finance' && <FarmFinanceLedger />}
 
-        {activeTab === 'training' && <FarmerTrainingCenter />}
+          {activeTab === 'directory' && <SupplierExpertDirectory />}
 
-        {activeTab === 'weather' && <WeatherRemindersView />}
+          {activeTab === 'training' && <FarmerTrainingCenter />}
 
-        {activeTab === 'agent' && <CommunityAgentAssistedView />}
+          {activeTab === 'weather' && <WeatherRemindersView />}
 
-        {activeTab === 'admin' && <AdminDashboard />}
-      </main>
+          {activeTab === 'agent' && <CommunityAgentAssistedView />}
+
+          {activeTab === 'admin' && <AdminDashboard />}
+        </main>
+
 
       {/* Modals & Portals */}
       <AuthModal />
@@ -220,8 +241,19 @@ function AgriBridgeDashboard() {
         onClose={() => setIsAboutFoundersOpen(false)}
       />
     </div>
+
+
+      {/* Mobile Bottom Navigation (Fixed on mobile screens) */}
+      <MobileBottomNav
+        activeTab={activeTab}
+        setActiveTab={setActiveTab}
+        onOpenNewListingModal={handleOpenBlankListing}
+        onOpenAboutFounders={() => setIsAboutFoundersOpen(true)}
+      />
+    </div>
   );
 }
+
 
 export default function App() {
   return (
