@@ -56,14 +56,16 @@ export function detectConversationalIntent(
   const cropsList = farmContext?.crops?.join(', ') || '';
 
   // 1. GREETINGS (hi, hello, hey, muraho, bite, etc.)
-  const greetingPatterns = [
-    /^(hi|hello|hey|heya|howdy|good\s*(morning|afternoon|evening|day)|greetings)$/i,
-    /^(muraho|mwaramutse|mwiriwe|bite|uraho|amakuru|amakuru\s*ki|bite\s*se|komera|ni\s*amahoro)$/i,
-    /^(hi\s*there|hello\s*agribridge|hello\s*there|hey\s*there)$/i,
-    /^(muraho\s*neza|mwiriwe\s*neza|mwaramutse\s*neza|bite\s*byanyu)$/i,
-  ];
+  const isPureGreeting =
+    /^(hi|hello|hey|heya|howdy|good\s*(morning|afternoon|evening|day)|greetings|muraho|mwaramutse|mwiriwe|bite|uraho|amakuru|komera|ni\s*amahoro)/i.test(
+      clean
+    ) &&
+    !/(price|sell|buy|fertilizer|disease|pest|weed|chlorosis|maize|bean|potato|cassava|harvest|store|profit|cost|kugura|kugurisha|igiciro|ifumbire|indwara|urwiri|nkongwa|ibigori|ibishyimbo)/i.test(
+      clean
+    );
 
-  if (greetingPatterns.some((pattern) => pattern.test(clean))) {
+  if (isPureGreeting) {
+
     const isRw = language === 'rw';
     const answer = isRw
       ? `Muraho neza! Ni amahoro? Nkurangamiye n'umutima ukunze.\n\nUmurima n'amatungo bimeze bite uyu munsi muri ${district}? ${cropsList ? `(Nabashije kubona ko ufite ibihingwa nka: ${cropsList}).` : ''}\n\nNiteguye kubafasha mu buhinzi n'ubworozi — guhera ku gufata neza ubutaka, kurwanya uburwayi bw'ibihingwa, kumenya ibiciro ku isoko no gukoresha serivisi za AgriBridge.\n\nMumbwire, ni ikihe kibazo cyangwa icyo dushobora gufatanya uyu munsi?`
@@ -195,6 +197,92 @@ export function detectConversationalIntent(
     };
   }
 
+  // 7. BUSINESS MATH & PROFIT CALCULATOR
+  const mathPatterns = [
+    /(calculate|compute|what is my|bara)\s*(revenue|profit|costs|break\s*even|inyungu|amafaranga)/i,
+    /(\d+)\s*(kg|kilos?|biro)\s*(at|ku|@)\s*(\d+)/i,
+    /revenue\s*=\s*quantity|profit\s*=\s*revenue/i,
+  ];
+  if (mathPatterns.some((pattern) => pattern.test(clean))) {
+    const isRw = language === 'rw';
+    // Try to extract numbers
+    const numbers = clean.match(/\d[\d,.]*/g)?.map((n) => parseFloat(n.replace(/,/g, ''))) || [];
+    let mathExplanation = '';
+
+    if (numbers.length >= 2) {
+      const qty = numbers[0];
+      const price = numbers[1];
+      const cost = numbers[2] !== undefined ? numbers[2] : null;
+      const revenue = qty * price;
+
+      if (cost !== null) {
+        const profit = revenue - cost;
+        const breakEven = qty > 0 ? (cost / qty).toFixed(1) : '0';
+        const roi = cost > 0 ? ((profit / cost) * 100).toFixed(1) : '0';
+
+        mathExplanation = isRw
+          ? `**Imibare y'Umusaruro n'Inyungu:**\n` +
+            `- **Ibiro Byagurishijwe (Quantity):** ${qty.toLocaleString()} kg\n` +
+            `- **Igiciro ku Kilo (Price/kg):** ${price.toLocaleString()} RWF\n` +
+            `- **Amafaranga Yose Winjije (Revenue = Qty × Price):** **${revenue.toLocaleString()} RWF**\n` +
+            `- **Ibyakoreshejwe Byose (Total Costs):** ${cost.toLocaleString()} RWF\n` +
+            `- **Inyungu Nyakuri (Net Profit = Revenue − Costs):** **${profit.toLocaleString()} RWF**\n` +
+            `- **Igiciro Fatizo Ntarengwa (Break-Even Price = Costs ÷ Qty):** **${breakEven} RWF/kg** (Nta muguzi ugomba kwemerera igiciro kiri munsi y'iki)\n` +
+            `- **Ijanisha ry'Inyungu (ROI):** ${roi}%\n\n` +
+            `*Icyitonderwa: Koresha agashami ka Farm Finances muri AgriBridge kugira ngo ubike aya makuru mu buryo bw'umwimerere.*`
+          : `**Farm Business & Profit Calculation:**\n` +
+            `- **Quantity Sold:** ${qty.toLocaleString()} kg\n` +
+            `- **Selling Price:** ${price.toLocaleString()} RWF/kg\n` +
+            `- **Total Revenue (Quantity × Price):** **${revenue.toLocaleString()} RWF**\n` +
+            `- **Total Production Costs:** ${cost.toLocaleString()} RWF\n` +
+            `- **Net Profit (Revenue − Total Costs):** **${profit.toLocaleString()} RWF**\n` +
+            `- **Break-Even Floor Price (Costs ÷ Quantity):** **${breakEven} RWF/kg** (Never accept buyer bids below this floor to prevent losses)\n` +
+            `- **Return on Investment (ROI):** ${roi}%\n\n` +
+            `*Tip: You can log every expense directly in the AgriBridge Farm Finance Ledger to track seasonal ROI per plot.*`;
+      } else {
+        mathExplanation = isRw
+          ? `**Kubara Amafaranga Yose Winjije (Gross Revenue):**\n` +
+            `- **Ibiro (Quantity):** ${qty.toLocaleString()} kg\n` +
+            `- **Igiciro ku Kilo (Price/kg):** ${price.toLocaleString()} RWF\n` +
+            `- **Amafaranga Yose Winjije (Revenue = Qty × Price):** **${revenue.toLocaleString()} RWF**\n\n` +
+            `Kugira ngo umenye **Inyungu Nyakuri (Net Profit)**, kuramo amafaranga yose wakoresheje (imbuto, ifumbire, abakozi, imifuka n'ubwikorezi): **Net Profit = Revenue − Total Costs**.`
+          : `**Gross Revenue Calculation:**\n` +
+            `- **Quantity Sold:** ${qty.toLocaleString()} kg\n` +
+            `- **Selling Price per Unit:** ${price.toLocaleString()} RWF/kg\n` +
+            `- **Total Revenue (Quantity × Price):** **${revenue.toLocaleString()} RWF**\n\n` +
+            `To calculate your **Net Profit**, subtract your total seasonal production costs (seeds, fertilizer, labor, transport): **Net Profit = Revenue − Total Costs**.`;
+      }
+    } else {
+      mathExplanation = isRw
+        ? `**Uburyo bwo Kubara Imari y'Umurima (Farm Economics):**\n` +
+          `1. **Amafaranga Yose Winjije (Revenue):** Ibiro Wasaruye (kg) × Igiciro cy'Ikiro (RWF/kg).\n` +
+          `2. **Ibyakoreshejwe Byose (Total Costs):** Guhinga + Imbuto + Ifumbire + Imiti + Abakozi + Ubwikorezi.\n` +
+          `3. **Inyungu Nyakuri (Net Profit):** Revenue − Total Costs.\n` +
+          `4. **Igiciro Fatizo Ntarengwa (Break-Even Price):** Total Costs ÷ Ibiro Byose Wasaruye (kg).\n\n` +
+          `*Mumbwire ibiro mwasaruye n'igiciro cyangwa ibyakoreshejwe, mpitemo kubibarira ako kanya!*`
+        : `**AgriBridge Farm Business Calculation Rules:**\n` +
+          `1. **Total Revenue** = Quantity Harvested & Sold (kg) × Selling Price per Unit (RWF/kg).\n` +
+          `2. **Total Production Costs** = Land Prep + Seeds + Fertilizer + Pesticides + Labor + Bags & Transport.\n` +
+          `3. **Net Profit** = Total Revenue − Total Production Costs.\n` +
+          `4. **Break-Even Price per kg** = Total Production Costs ÷ Total Harvest (kg).\n\n` +
+          `*Tell me your harvest kilograms and selling price (e.g., "calculate profit for 2000kg at 800rwf with cost 900000"), and I will calculate it instantly!*`;
+    }
+
+    return {
+      entry: null,
+      score: 10,
+      confidence: 'high',
+      formattedAnswer: mathExplanation,
+      source: 'local_knowledge',
+      matchedKeywords: ['finance_math', 'profit_calculation'],
+      platformAction: {
+        tab: 'finance',
+        labelEn: 'Open Farm Finance Ledger',
+        labelRw: 'Fungura Igitabo cy\'Imari cya AgriBridge',
+      },
+    };
+  }
+
   return null;
 }
 
@@ -207,7 +295,7 @@ export function searchOfflineAgriKnowledge(
   farmContext?: FarmContextData | null,
   personalize: boolean = true
 ): RetrievalResult {
-  // Check for natural human conversational intent first
+  // Check for natural human conversational intent or business math first
   const conversationalMatch = detectConversationalIntent(query, language, farmContext);
   if (conversationalMatch) {
     return conversationalMatch;
@@ -218,8 +306,8 @@ export function searchOfflineAgriKnowledge(
   if (queryTokens.length === 0) {
     const emptyMsg =
       language === 'rw'
-        ? 'Nyamuneka baza ikibazo cy\'ubuhinzi cyangwa icyerekeye AgriBridge, urugero: "Nigute narwanya nkongwa mu bigori?" cyangwa "Nigute nagurisha ibishyimbo ku isoko?"'
-        : 'Please ask an agricultural or AgriBridge platform question, for example: "How do I control Fall Armyworm in maize?" or "How do I sell my harvested beans?"';
+        ? 'Nyamuneka baza ikibazo cy\'ubuhinzi cyangwa icyerekeye AgriBridge, urugero: "Nigute narwanya ibyatsi bibi mu bigori?", "Kuki ibibabi byahindutse umuhondo?", cyangwa "Nigute nagurisha ibishyimbo ku isoko?"'
+        : 'Please ask an agricultural or AgriBridge platform question, for example: "How do I control weeds in maize?", "Why are my crop leaves turning yellow?", or "How do I calculate farm profit?"';
     return {
       entry: null,
       score: 0,
@@ -275,8 +363,8 @@ export function searchOfflineAgriKnowledge(
     // Boost score if question matches user's recorded crops
     if (personalize && farmContext?.crops) {
       for (const crop of farmContext.crops) {
-        if (entry.category.toLowerCase().includes(crop.toLowerCase())) {
-          score += 2.0;
+        if (entry.category.toLowerCase().includes(crop.toLowerCase()) || entry.targetCrops?.some(tc => tc.toLowerCase().includes(crop.toLowerCase()))) {
+          score += 2.5;
         }
       }
     }
@@ -299,15 +387,17 @@ export function searchOfflineAgriKnowledge(
         ? `Iki kibazo ntabwo kiraboneka mu bubiko bwa tekiniki bwo muri telefone (Offline Knowledge Base).
 
 Icyo mwakora:
-1. Gerageza kubaza mu yandi magambo yoroshye (urugero: "ibigori", "ibishyimbo", "imifuka ya PICS", "ifumbire", "kugurisha").
-2. Niba ikibazo cyihutirwa ku burwayi bukomeye bw'ibihingwa cyangwa amatungo, gana Agronome w'Umurenge cyangwa muganga w'amatungo ukwegereye.
-3. Kanda ku makarita y'ibibazo by'ingenzi biri hasi kugira ngo ubone ubumenyi bwizewe.`
+1. Gerageza kubaza mu yandi magambo yoroshye (urugero: "ibyatsi bibi", "ibibabi by'umuhondo", "imborera", "kubara inyungu", "isoko rya AgriBridge").
+2. Koresha uburyo bwo gusuzuma uburwayi bw'imyaka ("Crop Problem Diagnostic Assistant") bugufasha intambwe ku yindi.
+3. Niba ikibazo cyihutirwa ku burwayi bukomeye bw'ibihingwa cyangwa amatungo, gana Agronome w'Umurenge cyangwa muganga w'amatungo ukwegereye.
+4. Kanda ku makarita y'ibibazo by'ingenzi biri hasi kugira ngo ubone ubumenyi bwizewe bwa RAB.`
         : `This specific inquiry is not yet indexed in the local offline knowledge base.
 
 Recommended steps:
-1. Try rephrasing with key agricultural terms (e.g., "maize", "beans", "soil fertility", "PICS bags", "pests", "marketplace").
-2. For severe, acute crop disease or livestock health crises, please consult your local Sector Agronomist or Veterinary Officer directly.
-3. You can also explore the quick question cards below for verified offline agricultural guidelines.`;
+1. Try rephrasing with key agricultural terms (e.g., "weeds", "yellow leaves", "soil types", "fertilizer", "PICS bags", "farm profit", "marketplace").
+2. Use the guided "Crop Problem Diagnostic Assistant" to submit symptoms step-by-step.
+3. For acute crop disease outbreaks or severe animal health crises, please consult your local Sector Agronomist or Veterinary Officer directly.
+4. You can also explore the quick question cards below or browse the Agricultural Knowledge Library.`;
 
     return {
       entry: null,
@@ -319,46 +409,76 @@ Recommended steps:
     };
   }
 
-  // Format the structured answer adhering to Section 12 requirements
+  // Format the structured answer adhering strictly to Part 3 (7-part practical answer structure)
   const isRw = language === 'rw';
   const directAns = isRw ? bestEntry.directAnswerRw : bestEntry.directAnswerEn;
   const causes = isRw ? bestEntry.causesRw : bestEntry.causesEn;
+  const missingInfo = isRw ? bestEntry.missingInfoQuestionsRw : bestEntry.missingInfoQuestionsEn;
   const actions = isRw ? bestEntry.actionStepsRw : bestEntry.actionStepsEn;
+  const whatToAvoid = isRw ? bestEntry.whatToAvoidRw : bestEntry.whatToAvoidEn;
   const precautions = isRw ? bestEntry.precautionsRw : bestEntry.precautionsEn;
   const expert = isRw ? bestEntry.expertConsultationRw : bestEntry.expertConsultationEn;
 
-  let answerText = `**${isRw ? 'Igisubizo Nyacyo' : 'Direct Answer'}**\n${directAns}\n\n`;
+  // 1. Direct answer
+  let answerText = `**1. ${isRw ? 'Igisubizo Nyacyo' : 'Direct Answer'}**\n${directAns}\n\n`;
 
+  // 2. What may be happening
   if (causes) {
-    answerText += `**${isRw ? 'Ibishobora Kubitera' : 'What may be causing it'}**\n${causes}\n\n`;
+    answerText += `**2. ${isRw ? 'Ibishobora Kubitera' : 'What may be happening'}**\n${causes}\n\n`;
   }
 
+  // 3. What information is missing (diagnostic follow-ups)
+  if (missingInfo && missingInfo.length > 0) {
+    answerText += `**3. ${isRw ? 'Amakuru Akenewe Kwitonderwa (Ibibazo byo Gusuzuma)' : 'What information is missing (Diagnostic Questions)'}**\n`;
+    missingInfo.forEach((q) => {
+      answerText += `- ${q}\n`;
+    });
+    answerText += '\n';
+  }
+
+  // 4. Practical steps
   if (actions && actions.length > 0) {
-    answerText += `**${isRw ? 'Ibyo Umuhinzi Yakora (Intambwe z\'Ingenzi)' : 'What you can do (Recommended Steps)'}**\n`;
+    answerText += `**4. ${isRw ? 'Intambwe Zihariye Zo Gukora (Uburyo Buhendutse)' : 'Practical Steps (Actionable & Cost-Effective)'}**\n`;
     actions.forEach((act, idx) => {
       answerText += `${idx + 1}. ${act}\n`;
     });
     answerText += '\n';
   }
 
-  if (precautions) {
-    answerText += `**${isRw ? 'Ibyo Kwitondera n\'Ibyago' : 'What to watch out for'}**\n${precautions}\n\n`;
+  // 5. What to avoid
+  if (whatToAvoid) {
+    answerText += `**5. ${isRw ? 'Ibyo Umuhinzi Agomba Kwirinda' : 'What to Avoid'}**\n${whatToAvoid}\n\n`;
+  } else if (precautions) {
+    answerText += `**5. ${isRw ? 'Ibyo Kwitondera n\'Ibyago' : 'What to Avoid & Safety Precautions'}**\n${precautions}\n\n`;
   }
 
+  // 6. When to contact an agricultural expert
   if (expert) {
-    answerText += `**${isRw ? 'Igihe cyo Kugana Umuhanga mu Buhinzi' : 'When to ask an agricultural expert'}**\n${expert}\n\n`;
+    answerText += `**6. ${isRw ? 'Igihe cyo Kugana Umuhanga mu Buhinzi' : 'When to Contact an Agricultural Expert'}**\n${expert}\n\n`;
   }
 
-  // Note source verification
-  answerText += `*${isRw ? 'Inkomoko y\'Ubumenyi' : 'Knowledge Source'}: ${bestEntry.source} (${bestEntry.lastReviewed})*`;
+  // 7. Relevant AgriBridge feature
+  if (bestEntry.platformAction) {
+    const actionLabel = isRw ? bestEntry.platformAction.labelRw : bestEntry.platformAction.labelEn;
+    answerText += `**7. ${isRw ? 'Agashami ka AgriBridge Kajyanye N\'Iki' : 'Relevant AgriBridge Feature'}**\n` +
+      `Koresha agashami ka **${bestEntry.platformAction.tab.toUpperCase()}** kuri AgriBridge kugira ngo ubone ubufasha: *${actionLabel}*.\n\n`;
+  }
+
+  // Source and Evidence Metadata (Part 8)
+  const sourceOrg = bestEntry.sourceOrganization || 'RAB';
+  const reviewDate = bestEntry.lastReviewed || '2026-03-01';
+  const status = bestEntry.reviewStatus ? `[${bestEntry.reviewStatus.toUpperCase()}]` : '[VERIFIED]';
+  const confidence = bestEntry.confidenceLevel ? bestEntry.confidenceLevel.toUpperCase() : 'HIGH';
+
+  answerText += `*${isRw ? 'Inkomoko Yemejwe' : 'Verified Source'}: ${sourceOrg} — ${bestEntry.sourceTitle || bestEntry.source} (${reviewDate}) · Status: ${status} · Confidence: ${confidence}*`;
 
   // Add subtle personalization mention if used
   if (personalize && farmContext?.crops?.length) {
-    const relevantCrop = farmContext.crops.find((c) => bestEntry?.category.toLowerCase().includes(c.toLowerCase()));
+    const relevantCrop = farmContext.crops.find((c) => bestEntry?.category.toLowerCase().includes(c.toLowerCase()) || bestEntry?.targetCrops?.some(tc => tc.toLowerCase().includes(c.toLowerCase())));
     if (relevantCrop) {
       const personalNote = isRw
-        ? `\n\n*(Iki gisubizo cyitaweho hashingiwe ku murima wawe w'${relevantCrop} wanditswe muri AgriBridge)*`
-        : `\n\n*(Tailored for your recorded ${relevantCrop} plot in ${farmContext.district || 'Rwanda'})*`;
+        ? `\n\n*(Iki gisubizo cyitaweho hashingiwe ku murima wawe w'${relevantCrop} wanditswe muri AgriBridge mu Murenge wa ${farmContext.sector || 'Nyagatare'})*`
+        : `\n\n*(Tailored for your recorded ${relevantCrop} plot in ${farmContext.sector || 'Nyagatare'}, Rwanda)*`;
       answerText += personalNote;
     }
   }

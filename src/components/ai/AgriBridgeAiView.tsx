@@ -48,7 +48,13 @@ import {
   Wallet,
   CheckCircle2,
   BookOpen,
+  Camera,
+  Image as ImageIcon,
+  Paperclip,
 } from 'lucide-react';
+import { AgriculturalKnowledgeLibrary } from './AgriculturalKnowledgeLibrary.tsx';
+import { CropProblemSolverModal } from './CropProblemSolverModal.tsx';
+
 
 interface AgriBridgeAiViewProps {
   onNavigateTab: (tab: any) => void;
@@ -78,6 +84,16 @@ export const AgriBridgeAiView: React.FC<AgriBridgeAiViewProps> = ({
   // Personalization toggle
   const [personalize, setPersonalize] = useState(true);
 
+  // Sub-tab view: chat vs knowledge library
+  const [activeViewMode, setActiveViewMode] = useState<'chat' | 'library'>('chat');
+  // Problem solver modal state
+  const [isProblemSolverOpen, setIsProblemSolverOpen] = useState(false);
+
+  // Image upload state for pest / weed / disease diagnostics
+  const [attachedImage, setAttachedImage] = useState<string | null>(null);
+  const [attachedImageName, setAttachedImageName] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   // Conversations history
   const [currentSessionId, setCurrentSessionId] = useState<string>(() => 'session_' + Date.now());
   const [savedSessions, setSavedSessions] = useState<ConversationSession[]>([]);
@@ -88,6 +104,32 @@ export const AgriBridgeAiView: React.FC<AgriBridgeAiViewProps> = ({
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const modelManager = useRef(LocalAiModelManager.getInstance()).current;
+
+  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setAttachedImageName(file.name);
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      setAttachedImage(event.target?.result as string);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleClearImage = () => {
+    setAttachedImage(null);
+    setAttachedImageName(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  const handleProblemSolverSubmit = (diagnosticSummary: string) => {
+    setIsProblemSolverOpen(false);
+    setActiveViewMode('chat');
+    handleSendMessage(diagnosticSummary);
+  };
+
 
   // Subscribe to status updates from model manager
   useEffect(() => {
@@ -147,15 +189,31 @@ export const AgriBridgeAiView: React.FC<AgriBridgeAiViewProps> = ({
 
   // Process and Submit a user question
   const handleSendMessage = async (queryText?: string) => {
-    const textToSend = (queryText || inputQuery).trim();
-    if (!textToSend || isProcessing) return;
+    let textToSend = (queryText || inputQuery).trim();
+    if (!textToSend && !attachedImage) return;
+    if (isProcessing) return;
 
+    if (attachedImage && !textToSend) {
+      textToSend =
+        language === 'rw'
+          ? 'Ndasaba kureba iyi foto y\'igihingwa/urwiri/icyonnyi ukangira inama y\'ubuhinzi.'
+          : 'Please inspect this crop/weed/pest photo and provide agricultural guidance.';
+    }
+
+    const currentImgName = attachedImageName;
     setInputQuery('');
+    setAttachedImage(null);
+    setAttachedImageName(null);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+
+    const displayContent = currentImgName
+      ? `📷 [${language === 'rw' ? 'Ifoto Yometseho' : 'Attached Photo'}: ${currentImgName}]\n\n${textToSend}`
+      : textToSend;
 
     const userMessage: ChatMessage = {
       id: 'msg_' + Date.now(),
       role: 'user',
-      content: textToSend,
+      content: displayContent,
       timestamp: Date.now(),
       engineUsed: 'local_knowledge',
     };
@@ -163,6 +221,7 @@ export const AgriBridgeAiView: React.FC<AgriBridgeAiViewProps> = ({
     const newMessages = [...messages, userMessage];
     setMessages(newMessages);
     setIsProcessing(true);
+
 
     try {
       let assistantAnswer = '';
@@ -477,12 +536,64 @@ export const AgriBridgeAiView: React.FC<AgriBridgeAiViewProps> = ({
         </div>
       </header>
 
-      {/* Main Body Grid (Chat Area + Optional History Drawer) */}
-      <div className="relative flex-1 flex overflow-hidden">
-        {/* Chat Stream Area */}
-        <div className="flex-1 flex flex-col h-full overflow-hidden bg-stone-50/40 dark:bg-stone-950/40">
-          <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-5">
-            {/* Welcome Banner when conversation is empty */}
+      {/* 1.5 Sub-Navigation Tab Bar: Chat vs Knowledge Library + Solve Problem Button */}
+      <div className="px-4 sm:px-6 py-2.5 border-b border-stone-200 dark:border-stone-800 bg-white/95 dark:bg-stone-900/95 flex flex-wrap items-center justify-between gap-2.5 shrink-0">
+        <div className="flex items-center gap-1.5 bg-stone-100 dark:bg-stone-800 p-1 rounded-xl">
+          <button
+            onClick={() => setActiveViewMode('chat')}
+            className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
+              activeViewMode === 'chat'
+                ? 'bg-white dark:bg-stone-900 text-emerald-800 dark:text-emerald-400 shadow-xs'
+                : 'text-stone-600 dark:text-stone-400 hover:text-stone-900 dark:hover:text-stone-200'
+            }`}
+          >
+            <MessageSquare className="w-3.5 h-3.5" />
+            <span>{language === 'rw' ? 'Ikiganiro cy\'Ubuhinzi' : 'Farming AI Chat'}</span>
+          </button>
+
+          <button
+            onClick={() => setActiveViewMode('library')}
+            className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
+              activeViewMode === 'library'
+                ? 'bg-white dark:bg-stone-900 text-emerald-800 dark:text-emerald-400 shadow-xs'
+                : 'text-stone-600 dark:text-stone-400 hover:text-stone-900 dark:hover:text-stone-200'
+            }`}
+          >
+            <BookOpen className="w-3.5 h-3.5" />
+            <span>{language === 'rw' ? 'Isomero ry\'Ubumenyi' : 'Knowledge Library'}</span>
+            <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-emerald-100 dark:bg-emerald-950/80 text-emerald-800 dark:text-emerald-300 font-mono">
+              44+
+            </span>
+          </button>
+        </div>
+
+        <button
+          onClick={() => setIsProblemSolverOpen(true)}
+          className="px-3.5 py-1.5 rounded-xl text-xs font-bold bg-amber-500 hover:bg-amber-600 text-stone-950 flex items-center gap-2 transition-all shadow-xs cursor-pointer ml-auto hover:scale-[1.02] active:scale-[0.98]"
+        >
+          <AlertTriangle className="w-3.5 h-3.5 text-stone-950" />
+          <span>{language === 'rw' ? 'Mfite ikibazo ku gihingwa cyanjye' : 'I Have a Problem with My Crop'}</span>
+        </button>
+      </div>
+
+      {/* Main View Area: Either Knowledge Library or Chat Stream */}
+      {activeViewMode === 'library' ? (
+        <div className="flex-1 overflow-hidden">
+          <AgriculturalKnowledgeLibrary
+            onAskAiAboutEntry={(entry) => {
+              setActiveViewMode('chat');
+              handleSendMessage(language === 'rw' ? entry.questionRw : entry.questionEn);
+            }}
+            onNavigateTab={onNavigateTab}
+          />
+        </div>
+      ) : (
+        /* Main Body Grid (Chat Area + Optional History Drawer) */
+        <div className="relative flex-1 flex overflow-hidden">
+          {/* Chat Stream Area */}
+          <div className="flex-1 flex flex-col h-full overflow-hidden bg-stone-50/40 dark:bg-stone-950/40">
+            <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-5">
+              {/* Welcome Banner when conversation is empty */}
             {messages.length === 0 && (
               <div className="max-w-2xl mx-auto py-6 space-y-6 text-center animate-in fade-in duration-300">
                 <div className="w-14 h-14 mx-auto rounded-2xl bg-emerald-800 flex items-center justify-center text-emerald-200 shadow-md">
@@ -686,6 +797,35 @@ export const AgriBridgeAiView: React.FC<AgriBridgeAiViewProps> = ({
 
           {/* 3. Input Toolbar Area */}
           <div className="p-3 sm:p-4 border-t border-stone-200 dark:border-stone-800 bg-white dark:bg-stone-900 shrink-0">
+            {/* Attached Photo Preview */}
+            {attachedImage && (
+              <div className="mb-2 p-2 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 flex items-center justify-between gap-3 text-xs">
+                <div className="flex items-center gap-2 overflow-hidden">
+                  <img
+                    src={attachedImage}
+                    alt="Attached crop preview"
+                    className="w-10 h-10 rounded-lg object-cover border border-emerald-300 dark:border-emerald-700 shrink-0"
+                  />
+                  <div className="truncate">
+                    <p className="font-semibold text-emerald-900 dark:text-emerald-200 truncate">
+                      {attachedImageName || 'Crop / Weed / Pest Photo'}
+                    </p>
+                    <p className="text-[10px] text-emerald-700 dark:text-emerald-400">
+                      {language === 'rw' ? 'Ifoto yiteguye gusuzumwa' : 'Photo ready for botanical / pest diagnosis'}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleClearImage}
+                  className="p-1 rounded-md text-stone-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 cursor-pointer"
+                  title="Remove photo"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            )}
+
             {voiceNotice && (
               <div className="mb-2 p-2 rounded-lg bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-xs text-amber-800 dark:text-amber-300">
                 {voiceNotice}
@@ -698,6 +838,25 @@ export const AgriBridgeAiView: React.FC<AgriBridgeAiViewProps> = ({
               }}
               className="flex items-center gap-2"
             >
+              {/* Hidden file input for camera & photo upload */}
+              <input
+                type="file"
+                ref={fileInputRef}
+                onChange={handleImageSelect}
+                accept="image/*"
+                className="hidden"
+              />
+
+              {/* Camera / Photo upload button */}
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="p-2.5 rounded-xl border border-stone-300 dark:border-stone-700 bg-stone-50 dark:bg-stone-800 text-stone-600 dark:text-stone-300 hover:bg-stone-100 dark:hover:bg-stone-700 transition-colors cursor-pointer"
+                title={language === 'rw' ? 'Ohereza ifoto y\'urwiri cyangwa indwara' : 'Attach crop or weed photo for diagnosis'}
+              >
+                <Camera className="w-4 h-4" />
+              </button>
+
               {/* Voice Input button */}
               <button
                 type="button"
@@ -719,8 +878,8 @@ export const AgriBridgeAiView: React.FC<AgriBridgeAiViewProps> = ({
                 onChange={(e) => setInputQuery(e.target.value)}
                 placeholder={
                   language === 'rw'
-                    ? 'Baza ikibazo cy\'ubuhinzi, indwara z\'ibihingwa, ibiciro cyangwa AgriBridge...'
-                    : 'Ask agricultural questions, crop diseases, fertilizer, or AgriBridge services...'
+                    ? 'Baza ikibazo cy\'ubuhinzi, indwara, urwiri, ibiciro cyangwa AgriBridge...'
+                    : 'Ask agricultural questions, crop diseases, weeds, fertilizer, or finances...'
                 }
                 className="flex-1 px-4 py-2.5 text-xs sm:text-sm bg-stone-50 dark:bg-stone-800 border border-stone-300 dark:border-stone-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-700 text-stone-900 dark:text-stone-100 placeholder-stone-400"
               />
@@ -728,7 +887,7 @@ export const AgriBridgeAiView: React.FC<AgriBridgeAiViewProps> = ({
               {/* Send Button */}
               <button
                 type="submit"
-                disabled={!inputQuery.trim() || isProcessing}
+                disabled={(!inputQuery.trim() && !attachedImage) || isProcessing}
                 className="p-2.5 rounded-xl bg-emerald-800 text-white hover:bg-emerald-900 disabled:opacity-40 disabled:cursor-not-allowed transition-colors shadow-2xs cursor-pointer"
                 title="Submit question"
               >
@@ -829,6 +988,7 @@ export const AgriBridgeAiView: React.FC<AgriBridgeAiViewProps> = ({
           </aside>
         )}
       </div>
+      )}
 
       {/* 5. Local AI Model Settings Modal (Section 4 & 5) */}
       {isModelModalOpen && (
@@ -920,6 +1080,14 @@ export const AgriBridgeAiView: React.FC<AgriBridgeAiViewProps> = ({
           </div>
         </div>
       )}
+
+      {/* 6. Guided Farmer Problem-Solving Workflow Modal (Part 6) */}
+      <CropProblemSolverModal
+        isOpen={isProblemSolverOpen}
+        onClose={() => setIsProblemSolverOpen(false)}
+        onSubmitToChat={handleProblemSolverSubmit}
+      />
     </div>
   );
 };
+

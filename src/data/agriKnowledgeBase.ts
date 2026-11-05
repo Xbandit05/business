@@ -29,26 +29,38 @@ export interface KnowledgeEntry {
     | 'sustainable_farming'
     | 'rwanda_guidance'
     | 'platform_usage';
-  category: string; // e.g. 'maize', 'beans', 'potatoes', 'cassava', 'rice', 'tomatoes', 'cattle', 'poultry', 'agribridge'
+  category: string; // e.g. 'weeds', 'soil', 'maize', 'beans', 'potatoes', 'cassava', 'rice', 'tomatoes', 'cattle', 'poultry', 'agribridge', 'finance'
+  targetCrops?: string[]; // e.g. ['Maize', 'Beans']
+  problemType?: 'weeds' | 'soil' | 'pests' | 'diseases' | 'water' | 'post_harvest' | 'nutrition' | 'finance' | 'general';
   questionEn: string;
   questionRw: string;
   directAnswerEn: string;
   directAnswerRw: string;
   causesEn?: string;
   causesRw?: string;
+  missingInfoQuestionsEn?: string[]; // Questions to ask when farmer symptom is incomplete
+  missingInfoQuestionsRw?: string[];
   actionStepsEn: string[];
   actionStepsRw: string[];
   precautionsEn?: string;
   precautionsRw?: string;
+  whatToAvoidEn?: string; // Clear "What to avoid" instructions
+  whatToAvoidRw?: string;
   expertConsultationEn?: string;
   expertConsultationRw?: string;
   keywordsEn: string[];
   keywordsRw: string[];
-  locationContext?: string; // e.g. 'Nyagatare & Eastern Savanna', 'Highland Volcanic Zones', 'Marshland/Igishanga', 'All Rwanda'
-  source: string; // e.g. 'RAB Extension Guide 2025/2026', 'MINAGRI National Guidelines'
+  locationContext?: string; // e.g. 'Nyagatare & Eastern Savanna', 'Highland Volcanic Zones', 'All Rwanda'
+  source: string; // e.g. 'RAB Extension Guide 2025/2026'
+  sourceOrganization?: 'RAB' | 'MINAGRI' | 'RICA' | 'FAO' | 'ICIPE' | 'CABI' | 'AgriBridge';
+  sourceTitle?: string;
+  sourceUrl?: string;
+  publicationDate?: string;
   lastReviewed: string;
+  reviewStatus?: 'verified' | 'provisional' | 'educational';
+  confidenceLevel?: 'high' | 'medium' | 'requires_inspection';
   platformAction?: {
-    tab: 'farmer' | 'marketplace' | 'offers' | 'orders' | 'finance' | 'directory' | 'training' | 'weather' | 'agent' | 'admin';
+    tab: 'farmer' | 'marketplace' | 'offers' | 'orders' | 'finance' | 'directory' | 'training' | 'weather' | 'agent' | 'admin' | 'ai';
     labelEn: string;
     labelRw: string;
     actionType?: 'navigate' | 'open_modal';
@@ -56,7 +68,9 @@ export interface KnowledgeEntry {
   };
 }
 
-export const AGRI_KNOWLEDGE_BASE: KnowledgeEntry[] = [
+import { EXPANDED_AGRI_KNOWLEDGE_BASE } from './expandedAgriKnowledge.ts';
+
+const INITIAL_KNOWLEDGE_BASE: KnowledgeEntry[] = [
   // --- SOIL HEALTH & PREPARATION ---
   {
     id: 'soil-fertility-01',
@@ -1126,4 +1140,9 @@ export const AGRI_KNOWLEDGE_BASE: KnowledgeEntry[] = [
       labelRw: 'Reba Urutonde rw\'Umurenge',
     },
   },
+];
+
+export const AGRI_KNOWLEDGE_BASE: KnowledgeEntry[] = [
+  ...INITIAL_KNOWLEDGE_BASE,
+  ...EXPANDED_AGRI_KNOWLEDGE_BASE,
 ];
