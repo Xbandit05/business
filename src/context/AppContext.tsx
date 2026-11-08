@@ -20,9 +20,13 @@ import {
   MarketBenchmark,
   CropGrowthStage,
   NyagatareSector,
+  UserPortfolio,
+  AuthSession,
+  PortfolioRegistrationPayload,
 } from '../types/index.ts';
 import {
   DEMO_USERS,
+  DEMO_PORTFOLIOS,
   DEMO_FARMS,
   DEMO_PLOTS,
   DEMO_CROP_CYCLES,
@@ -50,6 +54,22 @@ interface AppContextType {
   currentUser: UserProfile;
   role: UserRole;
   setRole: (role: UserRole) => void;
+  isAuthenticated: boolean;
+  setIsAuthenticated: (auth: boolean) => void;
+  activePortfolio: UserPortfolio | null;
+  userPortfolios: UserPortfolio[];
+  isAgentWorkspace: boolean;
+  registerPortfolioAccount: (payload: PortfolioRegistrationPayload) => Promise<{ success: boolean; error?: string }>;
+  loginWithCredentials: (identifier: string, passwordOrPin: string) => Promise<{ success: boolean; error?: string; portfolios?: UserPortfolio[] }>;
+  loginAsAgent: (agentIdOrPhone: string, agentPin: string) => Promise<{ success: boolean; error?: string }>;
+  switchPortfolio: (portfolioId: string) => void;
+  createPortfolio: (portfolioData: Partial<UserPortfolio>) => Promise<{ success: boolean; error?: string }>;
+  updatePortfolio: (portfolioId: string, updates: Partial<UserPortfolio>) => Promise<{ success: boolean; error?: string }>;
+  recoverAccount: (identifier: string, securityAnswer: string, newPin: string) => Promise<{ success: boolean; error?: string; message?: string }>;
+  enterDemoPreview: (role?: UserRole) => void;
+  isPortfolioModalOpen: boolean;
+  setIsPortfolioModalOpen: (open: boolean) => void;
+
   login: (
     name: string,
     phone: string,
@@ -141,10 +161,62 @@ const STORAGE_KEYS = {
   DEMO_OVERRIDE_OFFERS: 'agribridge_demo_offers_override',
   DEMO_OVERRIDE_CYCLES: 'agribridge_demo_cycles_override',
   DEMO_OVERRIDE_ORDERS: 'agribridge_demo_orders_override',
+  AUTH_SESSION: 'agribridge_auth_session',
+  USER_PORTFOLIOS: 'agribridge_user_portfolios',
+  ACTIVE_PORTFOLIO_ID: 'agribridge_active_portfolio_id',
 };
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  // Current logged in user (defaults to Demo Farmer IDRIS Agaba Otin)
+  // Authentication session status (defaults to false on initial visit without session)
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
+    try {
+      const session = localStorage.getItem(STORAGE_KEYS.AUTH_SESSION);
+      return Boolean(session);
+    } catch {
+      return false;
+    }
+  });
+
+  const [isAgentWorkspace, setIsAgentWorkspace] = useState<boolean>(() => {
+    try {
+      const session = localStorage.getItem(STORAGE_KEYS.AUTH_SESSION);
+      if (session) {
+        const parsed = JSON.parse(session);
+        return Boolean(parsed?.isAgent);
+      }
+      return false;
+    } catch {
+      return false;
+    }
+  });
+
+  // User Portfolios
+  const [userPortfolios, setUserPortfolios] = useState<UserPortfolio[]>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEYS.USER_PORTFOLIOS);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+      return DEMO_PORTFOLIOS;
+    } catch {
+      return DEMO_PORTFOLIOS;
+    }
+  });
+
+  // Active Portfolio ID
+  const [activePortfolioId, setActivePortfolioId] = useState<string>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEYS.ACTIVE_PORTFOLIO_ID);
+      return saved || 'PF-RW-IDRIS-01';
+    } catch {
+      return 'PF-RW-IDRIS-01';
+    }
+  });
+
+  const [isPortfolioModalOpen, setIsPortfolioModalOpen] = useState(false);
+
+  // Current logged in user profile
   const [currentUser, setCurrentUser] = useState<UserProfile>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEYS.CURRENT_USER);
@@ -523,26 +595,355 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     showToast('info', 'Saved Account Removed', 'Account credentials cleared from this browser.');
   };
 
+  const activePortfolio = userPortfolios.find((p) => p.id === activePortfolioId) || userPortfolios[0] || null;
+
+  const registerPortfolioAccount = async (payload: PortfolioRegistrationPayload): Promise<{ success: boolean; error?: string }> => {
+    try {
+      const res = await fetch('/api/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        setCurrentUser(data.user);
+        setUserPortfolios(data.portfolios);
+        setActivePortfolioId(data.activePortfolioId);
+        setIsAuthenticated(true);
+        setIsAgentWorkspace(false);
+        localStorage.setItem(STORAGE_KEYS.AUTH_SESSION, JSON.stringify({
+          token: data.token,
+          userId: data.user.id,
+          loginTime: new Date().toISOString(),
+        }));
+        localStorage.setItem(STORAGE_KEYS.CURRENT_USER, JSON.stringify(data.user));
+        localStorage.setItem(STORAGE_KEYS.USER_PORTFOLIOS, JSON.stringify(data.portfolios));
+        localStorage.setItem(STORAGE_KEYS.ACTIVE_PORTFOLIO_ID, data.activePortfolioId);
+        showToast('success', 'Portfolio Created', `Welcome to AgriBridge Rwanda, ${data.user.fullName}!`);
+        return { success: true };
+      }
+
+      const err = await res.json().catch(() => ({}));
+      return { success: false, error: err?.error || 'Registration failed.' };
+    } catch {
+      // Local offline fallback
+      const userId = `user_${Date.now()}`;
+      const portfolioId = `PF-RW-${Math.random().toString(36).substring(2, 6).toUpperCase()}-${Math.floor(1000 + Math.random() * 9000)}`;
+      const newUser: UserProfile = {
+        id: userId,
+        fullName: payload.fullName.trim(),
+        phoneNumber: payload.phoneNumber.trim(),
+        email: payload.email?.trim(),
+        role: payload.role,
+        category: payload.category,
+        district: payload.district,
+        sector: payload.sector,
+        nicheSpecialty: payload.nicheSpecialty || 'Agricultural Production',
+        businessOrFarmName: payload.businessOrFarmName || payload.portfolioName,
+        cooperativeName: payload.cooperativeName,
+        tradeVolumeScale: payload.tradeVolumeScale,
+        isVerified: true,
+        isDemo: false,
+        activePortfolioId: portfolioId,
+      };
+
+      const newPort: UserPortfolio = {
+        id: portfolioId,
+        userId,
+        name: payload.portfolioName || `${payload.fullName.trim()} Farm Portfolio`,
+        category: payload.category,
+        role: payload.role,
+        district: payload.district,
+        sector: payload.sector,
+        cell: payload.cell,
+        nicheSpecialty: payload.nicheSpecialty,
+        businessOrFarmName: payload.businessOrFarmName,
+        cooperativeName: payload.cooperativeName,
+        tradeVolumeScale: payload.tradeVolumeScale,
+        isPrimary: true,
+        createdAt: new Date().toISOString(),
+        metrics: {
+          plotsCount: payload.role === 'farmer' ? 1 : 0,
+          activeListingsCount: 0,
+          completedDealsCount: 0,
+          totalAreaHa: payload.role === 'farmer' ? 1.0 : 0,
+        },
+      };
+
+      const updated = [...userPortfolios, newPort];
+      setCurrentUser(newUser);
+      setUserPortfolios(updated);
+      setActivePortfolioId(portfolioId);
+      setIsAuthenticated(true);
+      setIsAgentWorkspace(false);
+      localStorage.setItem(STORAGE_KEYS.AUTH_SESSION, JSON.stringify({
+        token: `local_tok_${Date.now()}`,
+        userId,
+        loginTime: new Date().toISOString(),
+      }));
+      localStorage.setItem(STORAGE_KEYS.CURRENT_USER, JSON.stringify(newUser));
+      localStorage.setItem(STORAGE_KEYS.USER_PORTFOLIOS, JSON.stringify(updated));
+      localStorage.setItem(STORAGE_KEYS.ACTIVE_PORTFOLIO_ID, portfolioId);
+      showToast('success', 'Portfolio Created (Offline)', `Welcome to AgriBridge, ${newUser.fullName}!`);
+      return { success: true };
+    }
+  };
+
+  const loginWithCredentials = async (identifier: string, passwordOrPin: string): Promise<{ success: boolean; error?: string; portfolios?: UserPortfolio[] }> => {
+    try {
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ identifier, passwordOrPin }),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        setCurrentUser(data.user);
+        setUserPortfolios(data.portfolios);
+        setActivePortfolioId(data.activePortfolioId);
+        setIsAuthenticated(true);
+        setIsAgentWorkspace(false);
+        localStorage.setItem(STORAGE_KEYS.AUTH_SESSION, JSON.stringify({
+          token: data.token,
+          userId: data.user.id,
+          loginTime: new Date().toISOString(),
+        }));
+        localStorage.setItem(STORAGE_KEYS.CURRENT_USER, JSON.stringify(data.user));
+        localStorage.setItem(STORAGE_KEYS.USER_PORTFOLIOS, JSON.stringify(data.portfolios));
+        localStorage.setItem(STORAGE_KEYS.ACTIVE_PORTFOLIO_ID, data.activePortfolioId);
+        showToast('success', 'Portfolio Verified', `Welcome back, ${data.user.fullName}`);
+        return { success: true, portfolios: data.portfolios };
+      }
+
+      const err = await res.json().catch(() => ({}));
+      return { success: false, error: err?.error || 'Invalid credentials.' };
+    } catch {
+      // Local fallback for offline resilience
+      const cleanInput = identifier.trim().toLowerCase();
+      const match = DEMO_USERS.find(
+        (u) =>
+          u.phoneNumber.replace(/[\s\-\(\)]/g, '').includes(cleanInput.replace(/[\s\-\(\)]/g, '')) ||
+          (u.email && u.email.toLowerCase() === cleanInput) ||
+          cleanInput.includes('idris') ||
+          cleanInput.includes('clarisse') ||
+          cleanInput.includes('otin')
+      );
+
+      if (match) {
+        if (passwordOrPin === '123' || passwordOrPin === '1234' || passwordOrPin.length >= 3) {
+          const ports = DEMO_PORTFOLIOS.filter((p) => p.userId === match.id);
+          const primary = ports.find((p) => p.isPrimary) || ports[0];
+          setCurrentUser(match);
+          setUserPortfolios(ports.length > 0 ? ports : DEMO_PORTFOLIOS);
+          setActivePortfolioId(primary?.id || 'PF-RW-IDRIS-01');
+          setIsAuthenticated(true);
+          setIsAgentWorkspace(false);
+          showToast('success', 'Verified', `Welcome back, ${match.fullName}`);
+          return { success: true, portfolios: ports };
+        }
+        return { success: false, error: 'Incorrect password or PIN.' };
+      }
+      return { success: false, error: 'No account found matching this identifier.' };
+    }
+  };
+
+  const loginAsAgent = async (agentIdOrPhone: string, agentPin: string): Promise<{ success: boolean; error?: string }> => {
+    try {
+      const res = await fetch('/api/auth/agent-login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ agentIdOrPhone, agentPin }),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        setCurrentUser(data.user);
+        setUserPortfolios(data.portfolios);
+        setActivePortfolioId(data.activePortfolioId);
+        setIsAuthenticated(true);
+        setIsAgentWorkspace(true);
+        localStorage.setItem(STORAGE_KEYS.AUTH_SESSION, JSON.stringify({
+          token: data.token,
+          userId: data.user.id,
+          isAgent: true,
+          agentId: data.user.agentId,
+          loginTime: new Date().toISOString(),
+        }));
+        localStorage.setItem(STORAGE_KEYS.CURRENT_USER, JSON.stringify(data.user));
+        localStorage.setItem(STORAGE_KEYS.USER_PORTFOLIOS, JSON.stringify(data.portfolios));
+        localStorage.setItem(STORAGE_KEYS.ACTIVE_PORTFOLIO_ID, data.activePortfolioId);
+        showToast('success', 'Community Agent Verified', `Welcome, Field Extension Lead ${data.user.fullName}!`);
+        return { success: true };
+      }
+
+      const err = await res.json().catch(() => ({}));
+      return { success: false, error: err?.error || 'Invalid Community Agent credentials.' };
+    } catch {
+      // Local fallback
+      const cleanInput = agentIdOrPhone.trim().toLowerCase();
+      if (cleanInput.includes('agt') || cleanInput.includes('habimana') || cleanInput.includes('987 654') || cleanInput.includes('788987654')) {
+        if (agentPin === '123' || agentPin === '1234') {
+          const agent = DEMO_USERS.find((u) => u.role === 'agent') || DEMO_USERS[3];
+          const ports = DEMO_PORTFOLIOS.filter((p) => p.userId === agent.id);
+          setCurrentUser(agent);
+          setUserPortfolios(ports);
+          setActivePortfolioId('PF-RW-EMMANUEL-01');
+          setIsAuthenticated(true);
+          setIsAgentWorkspace(true);
+          showToast('success', 'Community Agent Verified', `Welcome, Field Agent ${agent.fullName}!`);
+          return { success: true };
+        }
+      }
+      return { success: false, error: 'Unauthorized Community Agent credentials.' };
+    }
+  };
+
+  const switchPortfolio = (portfolioId: string) => {
+    const target = userPortfolios.find((p) => p.id === portfolioId);
+    if (!target) return;
+    setActivePortfolioId(portfolioId);
+    localStorage.setItem(STORAGE_KEYS.ACTIVE_PORTFOLIO_ID, portfolioId);
+
+    setCurrentUser((prev) => ({
+      ...prev,
+      role: target.role,
+      category: target.category,
+      district: target.district,
+      sector: target.sector,
+      nicheSpecialty: target.nicheSpecialty || prev.nicheSpecialty,
+      businessOrFarmName: target.businessOrFarmName || target.name,
+      cooperativeName: target.cooperativeName || prev.cooperativeName,
+      activePortfolioId: target.id,
+    }));
+    showToast('info', 'Active Portfolio Switched', `Now managing: ${target.name}`);
+  };
+
+  const createPortfolio = async (portfolioData: Partial<UserPortfolio>): Promise<{ success: boolean; error?: string }> => {
+    try {
+      const res = await fetch('/api/portfolios', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: currentUser.id,
+          ...portfolioData,
+        }),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        setUserPortfolios(data.portfolios);
+        setActivePortfolioId(data.portfolio.id);
+        localStorage.setItem(STORAGE_KEYS.USER_PORTFOLIOS, JSON.stringify(data.portfolios));
+        localStorage.setItem(STORAGE_KEYS.ACTIVE_PORTFOLIO_ID, data.portfolio.id);
+        showToast('success', 'New Portfolio Added', `Created ${data.portfolio.name}`);
+        return { success: true };
+      }
+    } catch {}
+
+    const portfolioId = `PF-RW-${Math.random().toString(36).substring(2, 6).toUpperCase()}-${Math.floor(1000 + Math.random() * 9000)}`;
+    const newPort: UserPortfolio = {
+      id: portfolioId,
+      userId: currentUser.id,
+      name: portfolioData.name || 'New Plot & Farm Portfolio',
+      category: portfolioData.category || currentUser.category || 'seller',
+      role: portfolioData.role || currentUser.role,
+      district: portfolioData.district || currentUser.district,
+      sector: portfolioData.sector || currentUser.sector,
+      cell: portfolioData.cell || 'Central Cell',
+      nicheSpecialty: portfolioData.nicheSpecialty || currentUser.nicheSpecialty,
+      businessOrFarmName: portfolioData.businessOrFarmName || portfolioData.name,
+      cooperativeName: portfolioData.cooperativeName || currentUser.cooperativeName,
+      tradeVolumeScale: portfolioData.tradeVolumeScale,
+      isPrimary: false,
+      createdAt: new Date().toISOString(),
+      metrics: { plotsCount: 1, activeListingsCount: 0, completedDealsCount: 0, totalAreaHa: 1.0 },
+    };
+
+    const updated = [...userPortfolios, newPort];
+    setUserPortfolios(updated);
+    setActivePortfolioId(portfolioId);
+    localStorage.setItem(STORAGE_KEYS.USER_PORTFOLIOS, JSON.stringify(updated));
+    localStorage.setItem(STORAGE_KEYS.ACTIVE_PORTFOLIO_ID, portfolioId);
+    showToast('success', 'New Portfolio Added', `Created ${newPort.name}`);
+    return { success: true };
+  };
+
+  const updatePortfolio = async (portfolioId: string, updates: Partial<UserPortfolio>): Promise<{ success: boolean; error?: string }> => {
+    try {
+      await fetch(`/api/portfolios/${portfolioId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updates),
+      });
+    } catch {}
+
+    const updated = userPortfolios.map((p) => (p.id === portfolioId ? { ...p, ...updates, updatedAt: new Date().toISOString() } : p));
+    setUserPortfolios(updated);
+    localStorage.setItem(STORAGE_KEYS.USER_PORTFOLIOS, JSON.stringify(updated));
+
+    if (activePortfolioId === portfolioId) {
+      setCurrentUser((prev) => ({
+        ...prev,
+        businessOrFarmName: updates.name || updates.businessOrFarmName || prev.businessOrFarmName,
+        district: updates.district || prev.district,
+        sector: updates.sector || prev.sector,
+        nicheSpecialty: updates.nicheSpecialty || prev.nicheSpecialty,
+        cooperativeName: updates.cooperativeName || prev.cooperativeName,
+      }));
+    }
+    showToast('success', 'Portfolio Updated', 'Portfolio details have been saved.');
+    return { success: true };
+  };
+
+  const recoverAccount = async (identifier: string, securityAnswer: string, newPin: string): Promise<{ success: boolean; error?: string; message?: string }> => {
+    try {
+      const res = await fetch('/api/auth/recover', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ identifier, securityAnswer, newPasswordOrPin: newPin }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        showToast('success', 'Access Recovered', 'Your PIN/Password was updated. You can now log in.');
+        return { success: true, message: data.message };
+      }
+      return { success: false, error: data.error || 'Recovery failed.' };
+    } catch {
+      return { success: false, error: 'Network error. Please try again when connection is restored.' };
+    }
+  };
+
+  const enterDemoPreview = (targetRole: UserRole = 'farmer') => {
+    const match = DEMO_USERS.find((u) => u.role === targetRole) || DEMO_USERS[0];
+    const matchPortfolios = DEMO_PORTFOLIOS.filter((p) => p.userId === match.id);
+    const primary = matchPortfolios.find((p) => p.isPrimary) || matchPortfolios[0];
+
+    setCurrentUser(match);
+    setUserPortfolios(matchPortfolios.length > 0 ? matchPortfolios : DEMO_PORTFOLIOS);
+    setActivePortfolioId(primary ? primary.id : 'PF-RW-IDRIS-01');
+    setIsAuthenticated(true);
+    setIsAgentWorkspace(targetRole === 'agent');
+    localStorage.setItem(STORAGE_KEYS.AUTH_SESSION, JSON.stringify({
+      token: `demo_tok_${Date.now()}`,
+      userId: match.id,
+      loginTime: new Date().toISOString(),
+      isDemo: true,
+    }));
+    localStorage.setItem(STORAGE_KEYS.CURRENT_USER, JSON.stringify(match));
+    showToast('info', `Exploring as ${match.role.toUpperCase()}`, `Workspace loaded: ${match.fullName}`);
+  };
+
   const logout = () => {
-    setCurrentUser(DEMO_USERS[0]);
-    showToast('info', 'Signed Out', 'Returned to default demonstration farmer profile.');
+    setIsAuthenticated(false);
+    setIsAgentWorkspace(false);
+    localStorage.removeItem(STORAGE_KEYS.AUTH_SESSION);
+    showToast('info', 'Signed Out', 'You have returned to the AgriBridge Welcome screen.');
   };
 
   const loginAsJudge = (targetRole: UserRole) => {
-    const match = DEMO_USERS.find((u) => u.role === targetRole) || {
-      id: `judge_${targetRole}`,
-      fullName: `Judge Evaluation Account (${targetRole})`,
-      phoneNumber: '+250 788 999 000',
-      role: targetRole,
-      district: 'Nyagatare',
-      sector: 'Mimuri' as NyagatareSector,
-      cooperativeName: 'Competition Evaluation Authority',
-      isVerified: true,
-      isDemo: true,
-    };
-    setCurrentUser(match);
-    setIsAuthModalOpen(false);
-    showToast('success', 'Judge Demonstration Active', `Loaded verified ${targetRole} credentials.`);
+    enterDemoPreview(targetRole);
   };
 
   const setDataFilter = (filter: DataFilterMode) => {
@@ -884,6 +1285,21 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         currentUser,
         role: currentUser.role,
         setRole,
+        isAuthenticated,
+        setIsAuthenticated,
+        activePortfolio,
+        userPortfolios,
+        isAgentWorkspace,
+        registerPortfolioAccount,
+        loginWithCredentials,
+        loginAsAgent,
+        switchPortfolio,
+        createPortfolio,
+        updatePortfolio,
+        recoverAccount,
+        enterDemoPreview,
+        isPortfolioModalOpen,
+        setIsPortfolioModalOpen,
         login,
         logout,
         loginAsJudge,

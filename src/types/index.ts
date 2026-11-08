@@ -106,6 +106,62 @@ export interface UserProfile {
   isDemo: boolean;
   savedCredentials?: boolean;
   savedAt?: string;
+  activePortfolioId?: string;
+  agentId?: string;
+}
+
+export interface UserPortfolio {
+  id: string;
+  userId: string;
+  name: string;
+  category: UserCategory;
+  role: UserRole;
+  district: string;
+  sector: string;
+  cell?: string;
+  nicheSpecialty?: string;
+  businessOrFarmName?: string;
+  cooperativeName?: string;
+  tradeVolumeScale?: string;
+  isPrimary?: boolean;
+  createdAt: string;
+  updatedAt?: string;
+  metrics?: {
+    plotsCount?: number;
+    activeListingsCount?: number;
+    completedDealsCount?: number;
+    totalAreaHa?: number;
+  };
+}
+
+export interface AuthSession {
+  token: string;
+  userId: string;
+  user: UserProfile;
+  portfolios: UserPortfolio[];
+  activePortfolioId: string;
+  isAgent?: boolean;
+  agentId?: string;
+  loginTime: string;
+}
+
+export interface PortfolioRegistrationPayload {
+  fullName: string;
+  phoneNumber: string;
+  email?: string;
+  passwordOrPin: string;
+  securityQuestion?: string;
+  securityAnswer?: string;
+  category: UserCategory;
+  role: UserRole;
+  district: string;
+  sector: string;
+  cell?: string;
+  portfolioName: string;
+  nicheSpecialty?: string;
+  businessOrFarmName?: string;
+  cooperativeName?: string;
+  tradeVolumeScale?: string;
 }
 
 export interface Farm {
