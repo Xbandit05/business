@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useLanguage } from '../../context/LanguageContext.tsx';
 import { useApp } from '../../context/AppContext.tsx';
 import { Order, OrderStatus } from '../../types/index.ts';
+import { PawaPayCheckoutModal } from '../payments/PawaPayCheckoutModal.tsx';
 import {
   FileText,
   Truck,
@@ -16,13 +17,15 @@ import {
   ShieldCheck,
   CreditCard,
   X,
+  Smartphone,
 } from 'lucide-react';
 
 export const OrdersView: React.FC = () => {
   const { t } = useLanguage();
-  const { orders, updateOrderStatus, payCommission, role } = useApp();
+  const { orders, updateOrderStatus, payCommission, markOrderPaid, role } = useApp();
 
   const [receiptOrder, setReceiptOrder] = useState<Order | null>(null);
+  const [checkoutOrder, setCheckoutOrder] = useState<Order | null>(null);
 
   // Commission Metrics
   const totalGmvRwf = orders.reduce((acc, o) => acc + (Number(o.totalAmountRwf) || 0), 0);
@@ -133,6 +136,26 @@ export const OrdersView: React.FC = () => {
                       >
                         {order.status.replace(/_/g, ' ')}
                       </span>
+                      <span
+                        className={`text-[10px] font-bold px-2 py-0.5 rounded border uppercase flex items-center gap-1 ${
+                          order.paymentStatus === 'paid'
+                            ? 'text-emerald-800 bg-emerald-50 dark:bg-emerald-950/40 border-emerald-300 dark:border-emerald-800'
+                            : order.paymentStatus === 'payment_pending'
+                            ? 'text-amber-800 bg-amber-50 dark:bg-amber-950/40 border-amber-300 dark:border-amber-800'
+                            : order.paymentStatus === 'payment_failed'
+                            ? 'text-rose-800 bg-rose-50 dark:bg-rose-950/40 border-rose-300 dark:border-rose-800'
+                            : 'text-stone-700 bg-stone-100 dark:bg-stone-800 border-stone-300 dark:border-stone-700'
+                        }`}
+                      >
+                        <Smartphone className="w-3 h-3" />
+                        {order.paymentStatus === 'paid'
+                          ? 'PAID (PAWAPAY)'
+                          : order.paymentStatus === 'payment_pending'
+                          ? 'PAYMENT PENDING'
+                          : order.paymentStatus === 'payment_failed'
+                          ? 'PAYMENT FAILED'
+                          : 'UNPAID'}
+                      </span>
                       {order.isDemo ? (
                         <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-stone-200 dark:bg-stone-800 text-stone-600 dark:text-stone-400">
                           DEMO
@@ -224,7 +247,22 @@ export const OrdersView: React.FC = () => {
                   </div>
 
                   <div className="flex items-center gap-2">
-                    {order.commissionStatus === 'due' && (
+                    {order.paymentStatus !== 'paid' ? (
+                      <button
+                        onClick={() => setCheckoutOrder(order)}
+                        className="px-3.5 py-1.5 font-bold text-xs rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs transition-colors flex items-center gap-1.5 cursor-pointer"
+                      >
+                        <Smartphone className="w-3.5 h-3.5" />
+                        <span>Pay via Mobile Money (PawaPay)</span>
+                      </button>
+                    ) : (
+                      <div className="flex items-center gap-1.5 text-xs font-semibold text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 px-3 py-1.5 rounded-lg border border-emerald-200 dark:border-emerald-800">
+                        <CheckCircle2 className="w-3.5 h-3.5" />
+                        <span>Escrow Settled (PawaPay)</span>
+                      </div>
+                    )}
+
+                    {order.commissionStatus === 'due' && order.paymentStatus === 'paid' && (
                       <button
                         onClick={() => payCommission(order.id)}
                         className="px-3 py-1.5 font-semibold text-xs rounded-lg bg-amber-600 hover:bg-amber-700 text-white shadow-2xs transition-colors flex items-center gap-1.5"
@@ -248,6 +286,19 @@ export const OrdersView: React.FC = () => {
           })
         )}
       </div>
+
+      {/* PAWAPAY CHECKOUT MODAL */}
+      {checkoutOrder && (
+        <PawaPayCheckoutModal
+          order={checkoutOrder}
+          isOpen={Boolean(checkoutOrder)}
+          onClose={() => setCheckoutOrder(null)}
+          onPaymentSuccess={(orderId, depositId) => {
+            markOrderPaid(orderId, depositId);
+            setCheckoutOrder(null);
+          }}
+        />
+      )}
 
       {/* RECEIPT MODAL */}
       {receiptOrder && (

@@ -25,6 +25,8 @@ import {
   Globe,
   Volume2,
   VolumeX,
+  CreditCard,
+  MapPin,
 } from 'lucide-react';
 
 interface SidebarNavProps {
@@ -59,7 +61,7 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({
     });
   };
 
-  // 10 Primary Navigation Items requested by user
+  // Primary Navigation Items
   const primaryNavItems: {
     id: ActiveTabType;
     labelEn: string;
@@ -72,7 +74,9 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({
     { id: 'marketplace', labelEn: 'Produce Market', labelRw: 'Isoko ry\'Imyaka', icon: ShoppingBag },
     { id: 'offers', labelEn: 'Buyer Offers', labelRw: 'Ibiciro by\'Abaguzi', icon: Handshake },
     { id: 'orders', labelEn: 'Orders & Deals', labelRw: 'Amasezerano', icon: FileText },
+    { id: 'terminal', labelEn: 'Payment Terminal', labelRw: 'Ubwishyu & Terminal', icon: CreditCard, badge: '2.5%' },
     { id: 'finance', labelEn: 'Farm Finances', labelRw: 'Imari y\'Umurima', icon: Wallet },
+    { id: 'locations', labelEn: 'Rwanda Locations', labelRw: 'Imiterere y\'Uturere', icon: MapPin },
     { id: 'ai', labelEn: 'AgriBridge AI', labelRw: 'AgriBridge AI', icon: Sparkles, badge: 'Offline' },
     { id: 'directory', labelEn: 'Suppliers & Experts', labelRw: 'Abacuruzi & Abahanga', icon: Store },
     { id: 'training', labelEn: 'Training & Audio', labelRw: 'Amasomo & Amajwi', icon: BookOpen },

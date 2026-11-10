@@ -1,4 +1,4 @@
-import { NyagatareSector } from '../types/index.ts';
+import type { NyagatareSector } from '../types/index.ts';
 
 export interface SectorDetail {
   name: string;

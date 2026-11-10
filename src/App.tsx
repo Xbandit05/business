@@ -19,6 +19,8 @@ import { FarmerTrainingCenter } from './components/training/FarmerTrainingCenter
 import { WeatherRemindersView } from './components/weather/WeatherRemindersView.tsx';
 import { CommunityAgentAssistedView } from './components/agent/CommunityAgentAssistedView.tsx';
 import { AdminDashboard } from './components/admin/AdminDashboard.tsx';
+import { PaymentTerminalView } from './components/payments/PaymentTerminalView.tsx';
+import { LocationManagementView } from './components/location/LocationManagementView.tsx';
 import { AuthModal } from './components/auth/AuthModal.tsx';
 import {
   RegisterFarmModal,
@@ -129,6 +131,10 @@ function AgriBridgeDashboard() {
           {activeTab === 'orders' && <OrdersView />}
 
           {activeTab === 'finance' && <FarmFinanceLedger />}
+
+          {activeTab === 'terminal' && <PaymentTerminalView />}
+
+          {activeTab === 'locations' && <LocationManagementView />}
 
           {activeTab === 'directory' && <SupplierExpertDirectory />}
 

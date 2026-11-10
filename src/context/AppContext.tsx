@@ -124,6 +124,7 @@ interface AppContextType {
   // Orders & Commission
   updateOrderStatus: (orderId: string, status: OrderStatus) => void;
   payCommission: (orderId: string) => void;
+  markOrderPaid: (orderId: string, pawapayDepositId?: string) => void;
 
   // Farm Finances
   addExpense: (expense: Omit<FarmExpense, 'id' | 'isDemo' | 'createdAt'>) => string;
@@ -1193,6 +1194,28 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     showToast('success', 'Commission Paid', 'Platform transaction fee settled via MoMo.');
   };
 
+  const markOrderPaid = (orderId: string, pawapayDepositId?: string) => {
+    const update = (list: Order[]) =>
+      list.map((ord) =>
+        ord.id === orderId
+          ? {
+              ...ord,
+              paymentStatus: 'paid' as const,
+              commissionStatus: 'paid' as CommissionStatus,
+              pawapayDepositId: pawapayDepositId || ord.pawapayDepositId,
+              updatedAt: new Date().toISOString(),
+            }
+          : ord
+      );
+
+    if (userOrders.some((o) => o.id === orderId)) {
+      setUserOrders(update);
+    } else {
+      setDemoOrders(update);
+    }
+    showToast('success', 'Payment Confirmed', 'Mobile money payment verified via PawaPay Rwanda.');
+  };
+
   const addExpense = (expenseData: Omit<FarmExpense, 'id' | 'isDemo' | 'createdAt'>): string => {
     const id = `exp_user_${Date.now()}`;
     const newExp: FarmExpense = {
@@ -1333,6 +1356,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         counterOffer,
         updateOrderStatus,
         payCommission,
+        markOrderPaid,
         addExpense,
         deleteExpense,
         submitInquiry,

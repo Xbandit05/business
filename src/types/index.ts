@@ -169,9 +169,16 @@ export interface Farm {
   farmerId: string;
   farmerName: string;
   name: string;
+  province?: string;
+  provinceId?: string;
   district?: string;
+  districtId?: string;
   sector: NyagatareSector;
+  sectorId?: string;
   cell: string;
+  cellId?: string;
+  village?: string;
+  villageId?: string;
   totalAreaHa: number;
   soilType: string;
   waterSource: string;
@@ -280,6 +287,8 @@ export interface Order {
   deliveryOption: DeliveryOption;
   dispatchDate: string;
   paymentMethod: 'Mobile Money (MTN/Airtel)' | 'Bank Transfer (BPR/Equity)' | 'Escrow via Sacco';
+  paymentStatus?: 'unpaid' | 'payment_pending' | 'partially_paid' | 'paid' | 'payment_failed' | 'refunded';
+  pawapayDepositId?: string;
   receiptCode: string;
   isDemo: boolean;
   createdAt: string;
@@ -392,3 +401,236 @@ export interface MarketBenchmark {
   trend: 'rising' | 'stable' | 'dropping';
   lastUpdated: string;
 }
+
+// ==========================================
+// MODULE 1: PAYMENT TERMINAL & VERIFICATION
+// ==========================================
+
+export type PaymentStatus =
+  | 'CREATED'
+  | 'PENDING'
+  | 'PROCESSING'
+  | 'SUCCESS'
+  | 'FAILED'
+  | 'CANCELLED'
+  | 'EXPIRED'
+  | 'REFUNDED'
+  | 'PARTIALLY_PAID'
+  | 'UNDER_REVIEW';
+
+export type PaymentMethod =
+  | 'momo_mtn'
+  | 'airtel_money'
+  | 'bank_transfer'
+  | 'gateway_card';
+
+export interface PaymentRecord {
+  id: string;
+  reference: string; // e.g. AGP-20261109-7841
+  orderId: string;
+  orderNumber: string;
+  buyerId: string;
+  buyerName: string;
+  buyerPhone: string;
+  sellerId: string;
+  sellerName: string;
+  amountRwf: number;
+  marketplaceFeeRwf: number; // 2.5% or configured rate
+  providerFeeRwf: number; // telecom/bank fee
+  farmerPayoutRwf: number; // net to farmer
+  commissionRatePercent: number;
+  method: PaymentMethod;
+  methodName: string;
+  status: PaymentStatus;
+  statusReason?: string;
+  description: string;
+  idempotencyKey: string;
+  providerTransactionRef?: string;
+  customerPhone: string;
+  bankName?: string;
+  bankAccountNumber?: string;
+  bankAccountName?: string;
+  initiatedAt: string;
+  expiresAt: string;
+  completedAt?: string;
+  verifiedAt?: string;
+  reconciledAt?: string;
+  reconciledBy?: string;
+  reconciliationNotes?: string;
+  supportingEvidenceRef?: string;
+  refundedAt?: string;
+  refundReason?: string;
+  refundAmountRwf?: number;
+  isSandboxSimulation: boolean;
+  // Official PawaPay v2 metadata
+  pawapayDepositId?: string;
+  pawapayStatus?: 'ACCEPTED' | 'SUBMITTED' | 'COMPLETED' | 'FAILED' | 'REJECTED';
+  pawapayProvider?: 'MTN_MOMO_RWA' | 'AIRTEL_RWA';
+  pawapayFailureReason?: { failureCode?: string; failureMessage?: string };
+}
+
+export type PawaPayProvider = 'MTN_MOMO_RWA' | 'AIRTEL_RWA';
+
+export type PawaPayInitiationStatus = 'ACCEPTED' | 'REJECTED' | 'DUPLICATE_IGNORED';
+
+export type PawaPayTransactionStatus = 'ACCEPTED' | 'SUBMITTED' | 'COMPLETED' | 'FAILED';
+
+export interface PawaPayFailureReason {
+  failureCode?: string;
+  failureMessage?: string;
+}
+
+export interface PawaPayDepositResponse {
+  depositId: string;
+  status: PawaPayInitiationStatus;
+  created?: string;
+  rejectionReason?: PawaPayFailureReason;
+}
+
+export interface PawaPayCallbackPayload {
+  depositId: string;
+  status: 'COMPLETED' | 'FAILED' | 'SUBMITTED';
+  amount: string;
+  currency: 'RWF';
+  country?: string;
+  payer?: {
+    type: string;
+    accountDetails: {
+      phoneNumber: string;
+      provider: string;
+    };
+  };
+  customerMessage?: string;
+  clientReferenceId: string;
+  created?: string;
+  providerTransactionId?: string;
+  failureReason?: PawaPayFailureReason;
+  metadata?: Array<Record<string, any>>;
+}
+
+export type PaymentAuditAction =
+  | 'initiated'
+  | 'provider_pending'
+  | 'provider_processing'
+  | 'provider_success'
+  | 'provider_failed'
+  | 'webhook_received'
+  | 'verified'
+  | 'rejected'
+  | 'manually_reconciled'
+  | 'refunded'
+  | 'adjusted'
+  | 'expired';
+
+export interface PaymentAuditLogEntry {
+  id: string;
+  paymentId: string;
+  paymentReference: string;
+  action: PaymentAuditAction;
+  previousStatus: PaymentStatus | 'NONE';
+  newStatus: PaymentStatus;
+  actor: 'system' | 'admin' | 'webhook' | 'buyer' | 'seller';
+  actorName: string;
+  timestamp: string;
+  reason?: string;
+  evidenceRef?: string;
+  metadata?: Record<string, any>;
+}
+
+export interface PaymentReconciliationItem {
+  id: string;
+  paymentId: string;
+  paymentReference: string;
+  orderNumber: string;
+  expectedAmountRwf: number;
+  receivedAmountRwf: number;
+  discrepancyRwf: number;
+  reconciliationStatus: 'matched' | 'unmatched' | 'under_review' | 'manually_resolved';
+  method: PaymentMethod;
+  proofReference?: string;
+  reviewerId?: string;
+  reviewerName?: string;
+  reviewedAt?: string;
+  notes?: string;
+}
+
+export interface CommissionConfig {
+  ratePercent: number; // e.g. 2.5%
+  minimumFeeRwf: number; // e.g. 500 RWF
+  maximumFeeRwf?: number;
+  providerFeeShare: 'deduct_from_marketplace' | 'deduct_from_seller' | 'add_to_buyer';
+  effectiveDate: string;
+  updatedBy: string;
+}
+
+// ==========================================
+// MODULE 2: RWANDA ADMINISTRATIVE LOCATIONS
+// ==========================================
+
+export interface ProvinceEntity {
+  id: string;
+  code: string;
+  name: string;
+  nameRw: string;
+  districtsCount: number;
+}
+
+export interface DistrictEntity {
+  id: string;
+  code: string;
+  provinceId: string;
+  name: string;
+  nameRw: string;
+  sectorsCount: number;
+}
+
+export interface SectorEntity {
+  id: string;
+  code: string;
+  districtId: string;
+  name: string;
+  nameRw: string;
+  cellsCount: number;
+  primaryCrops?: string[];
+  cooperativesCount?: number;
+}
+
+export interface CellEntity {
+  id: string;
+  code: string;
+  sectorId: string;
+  name: string;
+  nameRw: string;
+  villagesCount: number;
+}
+
+export interface VillageEntity {
+  id: string;
+  code: string;
+  cellId: string;
+  name: string;
+  nameRw: string;
+}
+
+export interface LocationHierarchyNode {
+  province: ProvinceEntity;
+  district: DistrictEntity;
+  sector: SectorEntity;
+  cell: CellEntity;
+  village: VillageEntity;
+}
+
+export interface LocationImportReport {
+  version: string;
+  importedAt: string;
+  totalProvinces: number;
+  totalDistricts: number;
+  totalSectors: number;
+  totalCells: number;
+  totalVillages: number;
+  duplicatesRemoved: number;
+  orphansDetected: number;
+  validationStatus: 'valid' | 'has_warnings' | 'failed';
+  warnings: string[];
+}
+

@@ -24,6 +24,8 @@ export type ActiveTabType =
   | 'offers'
   | 'orders'
   | 'finance'
+  | 'terminal'
+  | 'locations'
   | 'directory'
   | 'training'
   | 'weather'

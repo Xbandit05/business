@@ -20,6 +20,8 @@ import {
   Shield,
   Plus,
   Award,
+  CreditCard,
+  MapPin,
 } from 'lucide-react';
 
 interface MobileBottomNavProps {
@@ -79,12 +81,28 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
       icon: FileText,
     },
     {
+      id: 'terminal',
+      labelEn: 'Payment Terminal',
+      labelRw: 'Ubwishyu & Terminal',
+      descEn: 'Verify MoMo & bank transfers (2.5% commission)',
+      descRw: 'Emeza ubwishyu bwa MoMo n\'amabanki',
+      icon: CreditCard,
+    },
+    {
       id: 'finance',
       labelEn: 'Farm Finances',
       labelRw: 'Imari n\'Amakuru y\'Amafaranga',
       descEn: 'Track operational costs & calculate net profit',
       descRw: 'Bika ibyakoreshejwe n\'inyungu',
       icon: Wallet,
+    },
+    {
+      id: 'locations',
+      labelEn: 'Rwanda Locations',
+      labelRw: 'Imiterere y\'Uturere',
+      descEn: '30 Districts, sectors, cells & imidugudu hierarchy',
+      descRw: 'Uturere 30, imirenge, utugari n\'imidugudu',
+      icon: MapPin,
     },
     {
       id: 'directory',

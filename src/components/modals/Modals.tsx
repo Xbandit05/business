@@ -15,6 +15,7 @@ import {
   DeliveryOption,
 } from '../../types/index.ts';
 import { X, Sprout, Tag, Handshake, MapPin, Layers } from 'lucide-react';
+import { RwandaLocationSelector, LocationSelection } from '../location/RwandaLocationSelector.tsx';
 
 // ==================== REGISTER FARM MODAL ====================
 export const RegisterFarmModal: React.FC<{
@@ -24,24 +25,22 @@ export const RegisterFarmModal: React.FC<{
   const { t } = useLanguage();
   const { addFarm, currentUser } = useApp();
 
-  const districts = getAllDistricts();
-  const [district, setDistrict] = useState<string>('Nyagatare');
   const [name, setName] = useState('');
-  const [sector, setSector] = useState<string>('Mimuri');
-  const [cell, setCell] = useState('');
+  const [location, setLocation] = useState<LocationSelection>({
+    provinceId: 'prv_east',
+    provinceName: 'Eastern Province',
+    districtId: 'dis_nyagatare',
+    districtName: 'Nyagatare',
+    sectorId: 'sec_nya_mimuri',
+    sectorName: 'Mimuri',
+    cellId: 'cel_mim_mahoro',
+    cellName: 'Mahoro',
+    villageId: 'vil_mah_01',
+    villageName: 'Rebero',
+  });
   const [totalAreaHa, setTotalAreaHa] = useState('2.0');
   const [soilType, setSoilType] = useState('Sandy Clay Loam');
   const [waterSource, setWaterSource] = useState('Rainfed & retention trench');
-
-  const availableSectors = getSectorsForDistrict(district);
-
-  const handleDistrictChange = (newDistrict: string) => {
-    setDistrict(newDistrict);
-    const sectors = getSectorsForDistrict(newDistrict);
-    if (sectors.length > 0) {
-      setSector(sectors[0].name);
-    }
-  };
 
   if (!isOpen) return null;
 
@@ -53,9 +52,16 @@ export const RegisterFarmModal: React.FC<{
       farmerId: currentUser?.id || 'user_farmer_1',
       farmerName: currentUser?.fullName || 'IDRIS Agaba Otin',
       name: name.trim(),
-      district,
-      sector,
-      cell: cell.trim() || 'Central Cell',
+      province: location.provinceName,
+      provinceId: location.provinceId,
+      district: location.districtName,
+      districtId: location.districtId,
+      sector: location.sectorName,
+      sectorId: location.sectorId,
+      cell: location.cellName || 'Central Cell',
+      cellId: location.cellId,
+      village: location.villageName,
+      villageId: location.villageId,
       totalAreaHa: parseFloat(totalAreaHa) || 1.0,
       soilType,
       waterSource,
@@ -65,7 +71,7 @@ export const RegisterFarmModal: React.FC<{
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs">
-      <div className="w-full max-w-lg bg-white dark:bg-stone-900 rounded-2xl border border-stone-200 dark:border-stone-800 shadow-xl p-6 space-y-4">
+      <div className="w-full max-w-xl max-h-[90vh] overflow-y-auto bg-white dark:bg-stone-900 rounded-2xl border border-stone-200 dark:border-stone-800 shadow-xl p-6 space-y-4">
         <div className="flex items-center justify-between pb-2 border-b border-stone-100 dark:border-stone-800">
           <div className="flex items-center gap-2">
             <MapPin className="w-5 h-5 text-emerald-800 dark:text-emerald-400" />
@@ -73,7 +79,7 @@ export const RegisterFarmModal: React.FC<{
               {t('farmer.registerFarm')}
             </h3>
           </div>
-          <button onClick={onClose} className="p-1 rounded text-stone-400 hover:text-stone-700 dark:hover:text-stone-200">
+          <button onClick={onClose} className="p-1 rounded text-stone-400 hover:text-stone-700 dark:hover:text-stone-200 cursor-pointer">
             <X className="w-5 h-5" />
           </button>
         </div>
@@ -93,55 +99,21 @@ export const RegisterFarmModal: React.FC<{
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block font-semibold text-stone-700 dark:text-stone-300 mb-1">
-                District (Akarere) *
-              </label>
-              <select
-                value={district}
-                onChange={(e) => handleDistrictChange(e.target.value)}
-                className="w-full px-3 py-2 bg-stone-50 dark:bg-stone-800 border border-stone-300 dark:border-stone-700 rounded-lg text-stone-900 dark:text-stone-100 font-medium"
-              >
-                {districts.map((d) => (
-                  <option key={d.name} value={d.name}>
-                    {d.name} ({d.province})
-                  </option>
-                ))}
-              </select>
+          {/* 5-Tier Cascading Rwanda Location System */}
+          <div className="p-3.5 rounded-xl bg-stone-50/70 dark:bg-stone-800/40 border border-stone-200 dark:border-stone-700/60">
+            <div className="text-[11px] font-bold text-stone-700 dark:text-stone-300 mb-2 uppercase tracking-wide">
+              Official Rwanda Administrative Location
             </div>
-
-            <div>
-              <label className="block font-semibold text-stone-700 dark:text-stone-300 mb-1">
-                Sector (Umurenge) *
-              </label>
-              <select
-                value={sector}
-                onChange={(e) => setSector(e.target.value)}
-                className="w-full px-3 py-2 bg-stone-50 dark:bg-stone-800 border border-stone-300 dark:border-stone-700 rounded-lg text-stone-900 dark:text-stone-100"
-              >
-                {availableSectors.map((s) => (
-                  <option key={s.name} value={s.name}>
-                    {s.name} Sector
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block font-semibold text-stone-700 dark:text-stone-300 mb-1">
-                Cell / Village (Akagari)
-              </label>
-              <input
-                type="text"
-                value={cell}
-                onChange={(e) => setCell(e.target.value)}
-                placeholder="e.g., Mahoro Cell"
-                className="w-full px-3 py-2 bg-stone-50 dark:bg-stone-800 border border-stone-300 dark:border-stone-700 rounded-lg text-stone-900 dark:text-stone-100"
-              />
-            </div>
+            <RwandaLocationSelector
+              initialProvinceId="prv_east"
+              initialDistrictId="dis_nyagatare"
+              initialSectorId="sec_nya_mimuri"
+              initialCellId="cel_mim_mahoro"
+              initialVillageId="vil_mah_01"
+              requireCell={true}
+              requireVillage={false}
+              onChange={(sel) => setLocation(sel)}
+            />
           </div>
 
           <div className="grid grid-cols-2 gap-3">
