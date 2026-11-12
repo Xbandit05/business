@@ -23,6 +23,9 @@ import {
   UserPortfolio,
   AuthSession,
   PortfolioRegistrationPayload,
+  NegotiationThread,
+  NegotiationMessage,
+  PriceProposal,
 } from '../types/index.ts';
 import {
   DEMO_USERS,
@@ -38,6 +41,7 @@ import {
   DEMO_EXPERTS,
   DEMO_LESSONS,
   DEMO_BENCHMARKS,
+  DEMO_NEGOTIATION_THREADS,
 } from '../data/nyagatare.ts';
 
 export type DataFilterMode = 'all' | 'user_only' | 'demo_only';
@@ -134,6 +138,38 @@ interface AppContextType {
   submitInquiry: (inquiry: Omit<AdvisoryInquiry, 'id' | 'status' | 'createdAt'>) => void;
   toggleLessonComplete: (lessonId: string) => void;
 
+  // Price Negotiation Inbox & Portal
+  negotiationThreads: NegotiationThread[];
+  activeThreadId: string | null;
+  setActiveThreadId: (id: string | null) => void;
+  startNegotiationWithListing: (
+    listing: ProduceListing,
+    initialOfferPrice?: number,
+    initialQuantityKg?: number,
+    initialNotes?: string
+  ) => string;
+  sendMessageInThread: (
+    threadId: string,
+    content: string,
+    priceProposal?: {
+      offeredPricePerKg: number;
+      offeredQuantityKg: number;
+      deliveryOption?: string;
+      pickupDate?: string;
+      termsNotes?: string;
+    }
+  ) => void;
+  respondToProposal: (
+    threadId: string,
+    proposalId: string,
+    action: 'accept' | 'decline' | 'counter',
+    counterPricePerKg?: number,
+    counterQuantityKg?: number,
+    counterNotes?: string
+  ) => void;
+  convertThreadToOrder: (threadId: string) => Order | null;
+  unreadNegotiationsCount: number;
+
   // Session Reset
   resetDemoData: () => void;
   clearUserRecords: () => void;
@@ -165,6 +201,7 @@ const STORAGE_KEYS = {
   AUTH_SESSION: 'agribridge_auth_session',
   USER_PORTFOLIOS: 'agribridge_user_portfolios',
   ACTIVE_PORTFOLIO_ID: 'agribridge_active_portfolio_id',
+  NEGOTIATION_THREADS: 'agribridge_negotiation_threads',
 };
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -372,6 +409,24 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   });
 
+  // Price Negotiation Inbox Threads
+  const [negotiationThreads, setNegotiationThreads] = useState<NegotiationThread[]>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEYS.NEGOTIATION_THREADS);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+      return DEMO_NEGOTIATION_THREADS;
+    } catch {
+      return DEMO_NEGOTIATION_THREADS;
+    }
+  });
+
+  const [activeThreadId, setActiveThreadId] = useState<string | null>(() => {
+    return DEMO_NEGOTIATION_THREADS[0]?.id || null;
+  });
+
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
 
   // Sync to localStorage
@@ -430,6 +485,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   useEffect(() => {
     localStorage.setItem(STORAGE_KEYS.DEMO_OVERRIDE_ORDERS, JSON.stringify(demoOrders));
   }, [demoOrders]);
+
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEYS.NEGOTIATION_THREADS, JSON.stringify(negotiationThreads));
+  }, [negotiationThreads]);
 
   // Notifications
   const showToast = (type: 'success' | 'info' | 'warning', title: string, description?: string) => {
@@ -1282,6 +1341,386 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     showToast('warning', 'User Records Cleared', 'All locally created test records have been reset.');
   };
 
+  // ----------------------------------------------------
+  // Price Negotiation Inbox & Portal Operations
+  // ----------------------------------------------------
+  const startNegotiationWithListing = (
+    listing: ProduceListing,
+    initialOfferPrice?: number,
+    initialQuantityKg?: number,
+    initialNotes?: string
+  ): string => {
+    const isBuyerRole = currentUser.role === 'buyer';
+    const buyerId = isBuyerRole ? currentUser.id : 'user_buyer_1';
+    const buyerName = isBuyerRole ? currentUser.fullName : 'Clarisse Umutoni';
+    const buyerPhone = currentUser.phoneNumber || currentUser.phone || '+250 788 654 321';
+
+    // Check if an active thread already exists for this listing with this buyer
+    const existing = negotiationThreads.find(
+      (t) => t.listingId === listing.id && (t.buyerId === buyerId || isBuyerRole)
+    );
+
+    if (existing) {
+      setActiveThreadId(existing.id);
+      showToast('info', 'Negotiation Opened', `Resumed active negotiation thread with ${existing.farmerName}.`);
+      return existing.id;
+    }
+
+    const newThreadId = `thread_neg_${Date.now()}`;
+    const quantity = initialQuantityKg || listing.minimumOrderKg || 500;
+    const offerPrice = initialOfferPrice || Math.round(listing.unitPriceRwf * 0.95);
+    const platformFee = Math.round(offerPrice * quantity * 0.025);
+
+    const initialProposal: PriceProposal = {
+      id: `prop_${Date.now()}`,
+      proposedPricePerKgRwf: offerPrice,
+      requestedQuantityKg: quantity,
+      totalAmountRwf: offerPrice * quantity,
+      platformFeeRwf: platformFee,
+      proposedDeliveryOption: listing.deliveryOption,
+      status: 'pending',
+      proposerRole: 'buyer',
+      termsNotes: initialNotes || `Initial price negotiation proposal for ${listing.variety}.`,
+      createdAt: new Date().toISOString(),
+    };
+
+    const initialMsg: NegotiationMessage = {
+      id: `msg_${Date.now()}`,
+      threadId: newThreadId,
+      senderId: buyerId,
+      senderName: buyerName,
+      senderRole: 'buyer',
+      content:
+        initialNotes ||
+        `Muraho ${listing.farmerName}! I am interested in purchasing ${quantity.toLocaleString()} kg of ${listing.cropType.toUpperCase()} (${listing.variety}). I would like to propose a negotiated rate of ${offerPrice.toLocaleString()} RWF/kg. Looking forward to your response.`,
+      priceProposal: initialProposal,
+      timestamp: new Date().toISOString(),
+    };
+
+    const newThread: NegotiationThread = {
+      id: newThreadId,
+      listingId: listing.id,
+      cropName: `${listing.cropType.toUpperCase()} - ${listing.variety}`,
+      variety: listing.variety,
+      cropType: listing.cropType,
+      listingUnitPriceRwf: listing.unitPriceRwf,
+      quantityAvailableKg: listing.quantityAvailableKg,
+      minimumOrderKg: listing.minimumOrderKg,
+      deliveryOption: listing.deliveryOption,
+      farmerId: listing.farmerId,
+      farmerName: listing.farmerName,
+      farmerPhone: listing.farmerPhone,
+      farmerDistrict: listing.district || 'Nyagatare',
+      farmerSector: listing.sector || 'Mimuri',
+      buyerId,
+      buyerName,
+      buyerPhone,
+      buyerCompany: isBuyerRole ? (currentUser.businessOrFarmName || 'Kigali Millers Ltd') : 'Kigali Millers Ltd',
+      status: 'negotiating',
+      currentAgreedPricePerKgRwf: offerPrice,
+      latestMessageSnippet: initialMsg.content,
+      lastMessageTimestamp: initialMsg.timestamp,
+      unreadCountBuyer: 0,
+      unreadCountFarmer: 1,
+      latestPriceProposal: initialProposal,
+      messages: [initialMsg],
+    };
+
+    setNegotiationThreads((prev) => [newThread, ...prev]);
+    setActiveThreadId(newThread.id);
+    showToast(
+      'success',
+      'Negotiation Started',
+      `Price offer sent to ${listing.farmerName} (${offerPrice.toLocaleString()} RWF/kg).`
+    );
+    return newThread.id;
+  };
+
+  const sendMessageInThread = (
+    threadId: string,
+    content: string,
+    priceProposalData?: {
+      offeredPricePerKg: number;
+      offeredQuantityKg: number;
+      deliveryOption?: string;
+      pickupDate?: string;
+      termsNotes?: string;
+    }
+  ) => {
+    setNegotiationThreads((prev) =>
+      prev.map((thread) => {
+        if (thread.id !== threadId) return thread;
+
+        const isCurrentFarmer =
+          currentUser.role === 'farmer' ||
+          currentUser.id === thread.farmerId ||
+          (currentUser.role !== 'buyer' && currentUser.fullName === thread.farmerName);
+
+        const senderRole = isCurrentFarmer ? 'farmer' : 'buyer';
+        const senderId = currentUser.id || (isCurrentFarmer ? thread.farmerId : thread.buyerId);
+        const senderName = currentUser.fullName || (isCurrentFarmer ? thread.farmerName : thread.buyerName);
+
+        let newProposal: PriceProposal | undefined = undefined;
+        if (priceProposalData && priceProposalData.offeredPricePerKg > 0) {
+          const totalAmt = priceProposalData.offeredPricePerKg * priceProposalData.offeredQuantityKg;
+          newProposal = {
+            id: `prop_${Date.now()}`,
+            proposedPricePerKgRwf: priceProposalData.offeredPricePerKg,
+            requestedQuantityKg: priceProposalData.offeredQuantityKg,
+            totalAmountRwf: totalAmt,
+            platformFeeRwf: Math.round(totalAmt * 0.025),
+            proposedDeliveryOption: priceProposalData.deliveryOption || thread.deliveryOption,
+            proposedPickupDate: priceProposalData.pickupDate,
+            termsNotes: priceProposalData.termsNotes,
+            status: 'pending',
+            proposerRole: senderRole,
+            createdAt: new Date().toISOString(),
+          };
+        }
+
+        const newMsg: NegotiationMessage = {
+          id: `msg_${Date.now()}`,
+          threadId,
+          senderId,
+          senderName,
+          senderRole,
+          content,
+          priceProposal: newProposal,
+          timestamp: new Date().toISOString(),
+        };
+
+        const updatedMessages = [...thread.messages, newMsg];
+
+        return {
+          ...thread,
+          messages: updatedMessages,
+          latestMessageSnippet: content,
+          lastMessageTimestamp: newMsg.timestamp,
+          latestPriceProposal: newProposal || thread.latestPriceProposal,
+          unreadCountBuyer: isCurrentFarmer ? (thread.unreadCountBuyer || 0) + 1 : 0,
+          unreadCountFarmer: !isCurrentFarmer ? (thread.unreadCountFarmer || 0) + 1 : 0,
+        };
+      })
+    );
+    showToast('info', 'Message Sent', 'Message and price update delivered.');
+  };
+
+  const respondToProposal = (
+    threadId: string,
+    _proposalId: string,
+    action: 'accept' | 'decline' | 'counter',
+    counterPricePerKg?: number,
+    counterQuantityKg?: number,
+    counterNotes?: string
+  ) => {
+    setNegotiationThreads((prev) =>
+      prev.map((thread) => {
+        if (thread.id !== threadId) return thread;
+
+        const isCurrentFarmer =
+          currentUser.role === 'farmer' ||
+          currentUser.id === thread.farmerId ||
+          (currentUser.role !== 'buyer' && currentUser.fullName === thread.farmerName);
+        const responderRole = isCurrentFarmer ? 'farmer' : 'buyer';
+        const responderName = currentUser.fullName || (isCurrentFarmer ? thread.farmerName : thread.buyerName);
+
+        if (action === 'accept') {
+          const activeProposal = thread.latestPriceProposal;
+          const agreedPrice =
+            (activeProposal ? activeProposal.proposedPricePerKgRwf : thread.currentAgreedPricePerKgRwf) ||
+            thread.listingUnitPriceRwf ||
+            0;
+          const quantity = activeProposal ? activeProposal.requestedQuantityKg : (thread.minimumOrderKg || 500);
+
+          const updatedProposal: PriceProposal | undefined = activeProposal
+            ? { ...activeProposal, status: 'accepted' }
+            : undefined;
+
+          const systemNotice: NegotiationMessage = {
+            id: `msg_sys_${Date.now()}`,
+            threadId,
+            senderId: 'system',
+            senderName: 'AgriBridge Negotiation Escrow',
+            senderRole: 'system',
+            content: `Price Agreement Reached! ${responderName} accepted the offer of ${agreedPrice.toLocaleString()} RWF/kg for ${quantity.toLocaleString()} kg. Both buyer and farmer can now proceed to create the formal order with 2.5% MoMo escrow protection.`,
+            timestamp: new Date().toISOString(),
+          };
+
+          showToast(
+            'success',
+            'Deal Agreed!',
+            `Price locked at ${agreedPrice.toLocaleString()} RWF/kg. Ready to create binding order.`
+          );
+
+          return {
+            ...thread,
+            status: 'price_agreed',
+            currentAgreedPricePerKgRwf: agreedPrice,
+            latestPriceProposal: updatedProposal,
+            latestMessageSnippet: `Agreed: ${agreedPrice.toLocaleString()} RWF/kg`,
+            lastMessageTimestamp: systemNotice.timestamp,
+            messages: [...thread.messages, systemNotice],
+          };
+        }
+
+        if (action === 'decline') {
+          const updatedProposal: PriceProposal | undefined = thread.latestPriceProposal
+            ? { ...thread.latestPriceProposal, status: 'declined' }
+            : undefined;
+
+          const systemNotice: NegotiationMessage = {
+            id: `msg_sys_${Date.now()}`,
+            threadId,
+            senderId: 'system',
+            senderName: 'AgriBridge Negotiation Escrow',
+            senderRole: 'system',
+            content: `${responderName} declined the current price proposal. Negotiation remains open for new bids or counter-offers.`,
+            timestamp: new Date().toISOString(),
+          };
+
+          showToast('info', 'Offer Declined', 'Price proposal was declined. You can propose a new price.');
+
+          return {
+            ...thread,
+            latestPriceProposal: updatedProposal,
+            latestMessageSnippet: 'Proposal declined',
+            lastMessageTimestamp: systemNotice.timestamp,
+            messages: [...thread.messages, systemNotice],
+          };
+        }
+
+        if (action === 'counter' && counterPricePerKg && counterPricePerKg > 0) {
+          const qty = counterQuantityKg || thread.latestPriceProposal?.requestedQuantityKg || (thread.minimumOrderKg || 500);
+          const totalAmt = counterPricePerKg * qty;
+          const platformFee = Math.round(totalAmt * 0.025);
+
+          const counterProposal: PriceProposal = {
+            id: `prop_${Date.now()}`,
+            proposedPricePerKgRwf: counterPricePerKg,
+            requestedQuantityKg: qty,
+            totalAmountRwf: totalAmt,
+            platformFeeRwf: platformFee,
+            proposedDeliveryOption: thread.deliveryOption,
+            status: 'pending',
+            proposerRole: responderRole,
+            termsNotes: counterNotes,
+            createdAt: new Date().toISOString(),
+          };
+
+          const counterMsg: NegotiationMessage = {
+            id: `msg_${Date.now()}`,
+            threadId,
+            senderId: currentUser.id || (isCurrentFarmer ? thread.farmerId : thread.buyerId),
+            senderName: responderName,
+            senderRole: responderRole,
+            content:
+              counterNotes ||
+              `${responderName} made a counter-offer of ${counterPricePerKg.toLocaleString()} RWF/kg for ${qty.toLocaleString()} kg.`,
+            priceProposal: counterProposal,
+            timestamp: new Date().toISOString(),
+          };
+
+          showToast(
+            'info',
+            'Counter-Offer Submitted',
+            `Proposed ${counterPricePerKg.toLocaleString()} RWF/kg (${qty.toLocaleString()} kg).`
+          );
+
+          return {
+            ...thread,
+            status: 'negotiating',
+            latestPriceProposal: counterProposal,
+            latestMessageSnippet: counterMsg.content,
+            lastMessageTimestamp: counterMsg.timestamp,
+            messages: [...thread.messages, counterMsg],
+            unreadCountBuyer: isCurrentFarmer ? (thread.unreadCountBuyer || 0) + 1 : 0,
+            unreadCountFarmer: !isCurrentFarmer ? (thread.unreadCountFarmer || 0) + 1 : 0,
+          };
+        }
+
+        return thread;
+      })
+    );
+  };
+
+  const convertThreadToOrder = (threadId: string): Order | null => {
+    const thread = negotiationThreads.find((t) => t.id === threadId);
+    if (!thread) {
+      showToast('warning', 'Thread Not Found', 'Could not locate negotiation details.');
+      return null;
+    }
+
+    const price =
+      thread.currentAgreedPricePerKgRwf ||
+      thread.latestPriceProposal?.proposedPricePerKgRwf ||
+      thread.listingUnitPriceRwf;
+    const quantity = thread.latestPriceProposal?.requestedQuantityKg || thread.minimumOrderKg || 500;
+    const totalAmount = price * quantity;
+    const commission = Math.round(totalAmount * 0.025);
+    const orderId = `ord_neg_${Date.now().toString().slice(-6)}`;
+
+    const newOrder: Order = {
+      id: orderId,
+      buyerId: thread.buyerId,
+      buyerName: thread.buyerName,
+      buyerPhone: thread.buyerPhone,
+      sellerId: thread.farmerId,
+      sellerName: thread.farmerName,
+      cropType: (thread.cropType || 'maize') as any,
+      variety: thread.variety,
+      quantityKg: quantity,
+      pricePerKgRwf: price,
+      totalAmountRwf: totalAmount,
+      status: 'pending',
+      commissionStatus: 'pending',
+      commissionAmountRwf: commission,
+      deliveryLocation: `${thread.deliveryOption} (${thread.farmerSector || 'Nyagatare'})`,
+      pickupDate: new Date(Date.now() + 86400000 * 3).toISOString().split('T')[0],
+      isDemo: false,
+      createdAt: new Date().toISOString(),
+    };
+
+    setUserOrders((prev) => [newOrder, ...prev]);
+
+    const sysOrderMsg: NegotiationMessage = {
+      id: `msg_sys_ord_${Date.now()}`,
+      threadId,
+      senderId: 'system',
+      senderName: 'AgriBridge Order Engine',
+      senderRole: 'system',
+      content: `Purchase Order #${orderId} generated at negotiated price ${price.toLocaleString()} RWF/kg for ${quantity.toLocaleString()} kg (Total: ${totalAmount.toLocaleString()} RWF with ${commission.toLocaleString()} RWF 2.5% MoMo escrow protection fee). Ready for PawaPay checkout.`,
+      timestamp: new Date().toISOString(),
+    };
+
+    setNegotiationThreads((prev) =>
+      prev.map((t) =>
+        t.id === threadId
+          ? {
+              ...t,
+              status: 'order_created',
+              orderId,
+              latestMessageSnippet: `Order #${orderId} generated`,
+              lastMessageTimestamp: sysOrderMsg.timestamp,
+              messages: [...t.messages, sysOrderMsg],
+            }
+          : t
+      )
+    );
+
+    showToast(
+      'success',
+      'Order Created from Negotiation!',
+      `Order #${orderId} ready for PawaPay Mobile Money escrow checkout.`
+    );
+
+    return newOrder;
+  };
+
+  const unreadNegotiationsCount = negotiationThreads.reduce((sum, t) => {
+    const isFarmer = currentUser.role === 'farmer' || currentUser.id === t.farmerId;
+    return sum + (isFarmer ? t.unreadCountFarmer || 0 : t.unreadCountBuyer || 0);
+  }, 0);
+
   // Filtered queries based on dataFilter
   const filterList = <T extends { isDemo: boolean }>(allDemo: T[], allUser: T[]): T[] => {
     if (dataFilter === 'user_only') return allUser;
@@ -1345,6 +1784,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         inquiries: userInquiries,
         lessons: lessonsWithStatus,
         benchmarks: DEMO_BENCHMARKS,
+        negotiationThreads,
+        activeThreadId,
+        setActiveThreadId,
+        startNegotiationWithListing,
+        sendMessageInThread,
+        respondToProposal,
+        convertThreadToOrder,
+        unreadNegotiationsCount,
         addFarm,
         addPlot,
         addCropCycle,

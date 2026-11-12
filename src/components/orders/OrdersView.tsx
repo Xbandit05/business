@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useLanguage } from '../../context/LanguageContext.tsx';
 import { useApp } from '../../context/AppContext.tsx';
 import { Order, OrderStatus } from '../../types/index.ts';
+import { ActiveTabType } from '../Navbar.tsx';
 import { PawaPayCheckoutModal } from '../payments/PawaPayCheckoutModal.tsx';
 import {
   FileText,
@@ -18,14 +19,20 @@ import {
   CreditCard,
   X,
   Smartphone,
+  ExternalLink,
 } from 'lucide-react';
 
-export const OrdersView: React.FC = () => {
+interface OrdersViewProps {
+  onNavigateTab?: (tab: ActiveTabType) => void;
+}
+
+export const OrdersView: React.FC<OrdersViewProps> = ({ onNavigateTab }) => {
   const { t } = useLanguage();
   const { orders, updateOrderStatus, payCommission, markOrderPaid, role } = useApp();
 
   const [receiptOrder, setReceiptOrder] = useState<Order | null>(null);
   const [checkoutOrder, setCheckoutOrder] = useState<Order | null>(null);
+  const [checkoutMode, setCheckoutMode] = useState<'full_order' | 'commission_fee'>('full_order');
 
   // Commission Metrics
   const totalGmvRwf = orders.reduce((acc, o) => acc + (Number(o.totalAmountRwf) || 0), 0);
@@ -88,17 +95,35 @@ export const OrdersView: React.FC = () => {
           <div className="text-[11px] text-stone-500 mt-1">Calculated platform commission on sales</div>
         </div>
 
-        <div className="p-4 bg-white dark:bg-stone-900 rounded-xl border border-stone-200 dark:border-stone-800 shadow-2xs">
-          <div className="flex items-center justify-between text-stone-500 mb-1">
-            <span className="text-xs font-semibold">Commission Due (Unpaid)</span>
-            <CreditCard className="w-4 h-4 text-amber-600" />
+        <div className="p-4 bg-white dark:bg-stone-900 rounded-xl border border-stone-200 dark:border-stone-800 shadow-2xs flex flex-col justify-between">
+          <div>
+            <div className="flex items-center justify-between text-stone-500 mb-1">
+              <span className="text-xs font-semibold">Commission Due (Unpaid)</span>
+              <CreditCard className="w-4 h-4 text-amber-600" />
+            </div>
+            <div className="text-2xl font-bold font-mono tabular-nums text-amber-600 dark:text-amber-400">
+              {totalCommissionDueRwf.toLocaleString()}{' '}
+              <span className="text-sm font-normal text-stone-500">RWF</span>
+            </div>
           </div>
-          <div className="text-2xl font-bold font-mono tabular-nums text-amber-600 dark:text-amber-400">
-            {totalCommissionDueRwf.toLocaleString()}{' '}
-            <span className="text-sm font-normal text-stone-500">RWF</span>
-          </div>
-          <div className="text-[11px] text-stone-500 mt-1">
-            {totalCommissionPaidRwf.toLocaleString()} RWF settled via MoMo
+          <div className="flex items-center justify-between mt-2 pt-2 border-t border-stone-100 dark:border-stone-800">
+            <div className="text-[11px] text-stone-500">
+              {totalCommissionPaidRwf.toLocaleString()} RWF settled via MoMo
+            </div>
+            {totalCommissionDueRwf > 0 && (
+              <button
+                onClick={() => {
+                  const firstDueOrder = orders.find((o) => o.commissionStatus === 'due');
+                  if (firstDueOrder) {
+                    setCheckoutMode('commission_fee');
+                    setCheckoutOrder(firstDueOrder);
+                  }
+                }}
+                className="text-[11px] font-bold text-emerald-700 dark:text-emerald-400 hover:text-emerald-800 dark:hover:text-emerald-300 underline flex items-center gap-1 cursor-pointer"
+              >
+                <span>Pay 2.5% via MoMo Portal &rarr;</span>
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -246,29 +271,47 @@ export const OrdersView: React.FC = () => {
                     </select>
                   </div>
 
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
                     {order.paymentStatus !== 'paid' ? (
                       <button
-                        onClick={() => setCheckoutOrder(order)}
+                        onClick={() => {
+                          setCheckoutMode('full_order');
+                          setCheckoutOrder(order);
+                        }}
                         className="px-3.5 py-1.5 font-bold text-xs rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs transition-colors flex items-center gap-1.5 cursor-pointer"
                       >
                         <Smartphone className="w-3.5 h-3.5" />
-                        <span>Pay via Mobile Money (PawaPay)</span>
+                        <span>Pay via MoMo with 2.5% (PawaPay)</span>
                       </button>
                     ) : (
                       <div className="flex items-center gap-1.5 text-xs font-semibold text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 px-3 py-1.5 rounded-lg border border-emerald-200 dark:border-emerald-800">
                         <CheckCircle2 className="w-3.5 h-3.5" />
-                        <span>Escrow Settled (PawaPay)</span>
+                        <span>Escrow Settled</span>
                       </div>
                     )}
 
-                    {order.commissionStatus === 'due' && order.paymentStatus === 'paid' && (
+                    {order.commissionStatus === 'due' && (
                       <button
-                        onClick={() => payCommission(order.id)}
-                        className="px-3 py-1.5 font-semibold text-xs rounded-lg bg-amber-600 hover:bg-amber-700 text-white shadow-2xs transition-colors flex items-center gap-1.5"
+                        onClick={() => {
+                          setCheckoutMode('commission_fee');
+                          setCheckoutOrder(order);
+                        }}
+                        className="px-3.5 py-1.5 font-bold text-xs rounded-lg bg-amber-600 hover:bg-amber-700 text-white shadow-2xs transition-colors flex items-center gap-1.5 cursor-pointer"
+                        title="Open PawaPay portal to settle 2.5% platform commission fee"
                       >
-                        <CreditCard className="w-3.5 h-3.5" />
+                        <Smartphone className="w-3.5 h-3.5" />
                         <span>Pay 2.5% Fee via MoMo</span>
+                      </button>
+                    )}
+
+                    {onNavigateTab && (
+                      <button
+                        onClick={() => onNavigateTab('terminal')}
+                        className="px-3 py-1.5 font-semibold text-xs rounded-lg text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 hover:bg-emerald-100 dark:hover:bg-emerald-900/40 border border-emerald-200 dark:border-emerald-800 transition-colors flex items-center gap-1.5 cursor-pointer"
+                        title="Redirect to full PawaPay Payment Verification Terminal"
+                      >
+                        <ExternalLink className="w-3.5 h-3.5" />
+                        <span>Payment Terminal</span>
                       </button>
                     )}
 
@@ -277,7 +320,7 @@ export const OrdersView: React.FC = () => {
                       className="px-3 py-1.5 font-semibold text-xs rounded-lg bg-stone-100 dark:bg-stone-800 text-stone-800 dark:text-stone-200 hover:bg-stone-200 dark:hover:bg-stone-700 border border-stone-300 dark:border-stone-700 transition-colors flex items-center gap-1.5"
                     >
                       <Receipt className="w-3.5 h-3.5 text-emerald-700" />
-                      <span>View Receipt & Dispatch Note</span>
+                      <span>Receipt &amp; Waybill</span>
                     </button>
                   </div>
                 </div>
@@ -292,9 +335,15 @@ export const OrdersView: React.FC = () => {
         <PawaPayCheckoutModal
           order={checkoutOrder}
           isOpen={Boolean(checkoutOrder)}
+          initialMode={checkoutMode}
+          onNavigateToTerminal={() => onNavigateTab && onNavigateTab('terminal')}
           onClose={() => setCheckoutOrder(null)}
-          onPaymentSuccess={(orderId, depositId) => {
-            markOrderPaid(orderId, depositId);
+          onPaymentSuccess={(orderId, depositId, mode) => {
+            if (mode === 'commission_fee') {
+              payCommission(orderId);
+            } else {
+              markOrderPaid(orderId, depositId);
+            }
             setCheckoutOrder(null);
           }}
         />

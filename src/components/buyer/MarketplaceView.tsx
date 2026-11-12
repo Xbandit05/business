@@ -18,14 +18,19 @@ import {
   Clock,
   ArrowRight,
   Info,
+  MessageSquare,
 } from 'lucide-react';
 import { FounderWatermark } from '../common/FounderWatermark.tsx';
 
 interface MarketplaceViewProps {
   onSelectListingForOffer: (listing: ProduceListing) => void;
+  onStartNegotiation?: (listing: ProduceListing) => void;
 }
 
-export const MarketplaceView: React.FC<MarketplaceViewProps> = ({ onSelectListingForOffer }) => {
+export const MarketplaceView: React.FC<MarketplaceViewProps> = ({
+  onSelectListingForOffer,
+  onStartNegotiation,
+}) => {
   const { t } = useLanguage();
   const { listings, offers, role } = useApp();
 
@@ -337,13 +342,25 @@ export const MarketplaceView: React.FC<MarketplaceViewProps> = ({ onSelectListin
                         </div>
                       </div>
 
-                      <button
-                        onClick={() => onSelectListingForOffer(item)}
-                        className="flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold rounded-lg bg-emerald-800 hover:bg-emerald-900 text-white shadow-2xs transition-colors whitespace-nowrap"
-                      >
-                        <Handshake className="w-4 h-4" />
-                        <span>{t('market.makeOffer')}</span>
-                      </button>
+                      <div className="flex flex-wrap items-center gap-2">
+                        {onStartNegotiation && (
+                          <button
+                            onClick={() => onStartNegotiation(item)}
+                            className="flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-lg bg-emerald-50 dark:bg-emerald-950/60 hover:bg-emerald-100 dark:hover:bg-emerald-900/60 text-emerald-800 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800 shadow-2xs transition-all whitespace-nowrap"
+                            title="Chat & Negotiate Price with Farmer"
+                          >
+                            <MessageSquare className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                            <span>Negotiate Price</span>
+                          </button>
+                        )}
+                        <button
+                          onClick={() => onSelectListingForOffer(item)}
+                          className="flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-lg bg-emerald-800 hover:bg-emerald-900 text-white shadow-2xs transition-colors whitespace-nowrap"
+                        >
+                          <Handshake className="w-3.5 h-3.5" />
+                          <span>{t('market.makeOffer')}</span>
+                        </button>
+                      </div>
                     </div>
                   </div>
                 );

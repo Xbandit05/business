@@ -11,6 +11,9 @@ import {
   Lock,
   Receipt,
   Info,
+  ExternalLink,
+  DollarSign,
+  Wallet,
 } from 'lucide-react';
 import { Order, PawaPayProvider } from '../../types/index.ts';
 
@@ -18,15 +21,20 @@ interface PawaPayCheckoutModalProps {
   order: Order;
   isOpen: boolean;
   onClose: () => void;
-  onPaymentSuccess?: (orderId: string, depositId: string) => void;
+  initialMode?: 'full_order' | 'commission_fee';
+  onPaymentSuccess?: (orderId: string, depositId: string, mode: 'full_order' | 'commission_fee') => void;
+  onNavigateToTerminal?: () => void;
 }
 
 export const PawaPayCheckoutModal: React.FC<PawaPayCheckoutModalProps> = ({
   order,
   isOpen,
   onClose,
+  initialMode = 'full_order',
   onPaymentSuccess,
+  onNavigateToTerminal,
 }) => {
+  const [paymentMode, setPaymentMode] = useState<'full_order' | 'commission_fee'>(initialMode);
   const [provider, setProvider] = useState<PawaPayProvider>('MTN_MOMO_RWA');
   const [phone, setPhone] = useState<string>(order.buyerPhone || '250783456789');
   const [customerName, setCustomerName] = useState<string>(order.buyerName || '');
@@ -39,8 +47,18 @@ export const PawaPayCheckoutModal: React.FC<PawaPayCheckoutModalProps> = ({
   const [paymentRef, setPaymentRef] = useState<string | null>(null);
   const [providerTransactionId, setProviderTransactionId] = useState<string | null>(null);
   const [failureReason, setFailureReason] = useState<string | null>(null);
-  const [isPolling, setIsPolling] = useState(false);
   const [pollCount, setPollCount] = useState(0);
+
+  // Sync mode whenever initialMode or order changes
+  useEffect(() => {
+    if (initialMode) {
+      setPaymentMode(initialMode);
+    } else if (order.paymentStatus === 'paid' && order.commissionStatus === 'due') {
+      setPaymentMode('commission_fee');
+    } else {
+      setPaymentMode('full_order');
+    }
+  }, [initialMode, order]);
 
   // Auto-detect provider from phone prefix
   useEffect(() => {
@@ -72,10 +90,14 @@ export const PawaPayCheckoutModal: React.FC<PawaPayCheckoutModalProps> = ({
 
         if (data.status === 'COMPLETED' || data.status === 'SUCCESS') {
           setFlowState('completed');
-          setProviderTransactionId(data.record?.providerTransactionId || data.payment?.providerTransactionRef || `PRV-${Date.now().toString().slice(-8)}`);
+          setProviderTransactionId(
+            data.record?.providerTransactionId ||
+            data.payment?.providerTransactionRef ||
+            `PRV-${Date.now().toString().slice(-8)}`
+          );
           clearInterval(interval);
           if (onPaymentSuccess) {
-            onPaymentSuccess(order.id, depositId);
+            onPaymentSuccess(order.id, depositId, paymentMode);
           }
         } else if (data.status === 'FAILED') {
           setFlowState('failed');
@@ -95,12 +117,15 @@ export const PawaPayCheckoutModal: React.FC<PawaPayCheckoutModalProps> = ({
       isMounted = false;
       clearInterval(interval);
     };
-  }, [flowState, depositId, order.id, onPaymentSuccess]);
+  }, [flowState, depositId, order.id, onPaymentSuccess, paymentMode]);
 
   if (!isOpen) return null;
 
-  const commissionFeeRwf = Math.round((Number(order.totalAmountRwf) * 0.025));
-  const farmerNetPayoutRwf = Number(order.totalAmountRwf) - commissionFeeRwf;
+  const commissionFeeRwf = Math.round(Number(order.commissionAmountRwf) || (Number(order.totalAmountRwf) * 0.025));
+  const fullOrderTotalRwf = Number(order.totalAmountRwf);
+  const farmerNetPayoutRwf = fullOrderTotalRwf - commissionFeeRwf;
+
+  const activePayAmountRwf = paymentMode === 'commission_fee' ? commissionFeeRwf : fullOrderTotalRwf;
 
   const handleInitiate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -116,7 +141,11 @@ export const PawaPayCheckoutModal: React.FC<PawaPayCheckoutModalProps> = ({
           phone,
           correspondent: provider,
           customerName: customerName || order.buyerName,
-          statementDescription: `AgriBridge ${order.orderNumber}`.slice(0, 22),
+          paymentType: paymentMode === 'commission_fee' ? 'commission_only' : 'full_order',
+          statementDescription: paymentMode === 'commission_fee'
+            ? `AgriBridge 2.5% ${order.orderNumber}`.slice(0, 22)
+            : `AgriBridge ${order.orderNumber}`.slice(0, 22),
+          orderData: order,
         }),
       });
 
@@ -143,6 +172,13 @@ export const PawaPayCheckoutModal: React.FC<PawaPayCheckoutModalProps> = ({
     setErrorMessage(null);
   };
 
+  const handleRedirectToTerminal = () => {
+    onClose();
+    if (onNavigateToTerminal) {
+      onNavigateToTerminal();
+    }
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs overflow-y-auto">
       <div className="relative w-full max-w-lg my-8 bg-white dark:bg-stone-900 rounded-2xl border border-stone-200 dark:border-stone-800 shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150">
@@ -154,26 +190,73 @@ export const PawaPayCheckoutModal: React.FC<PawaPayCheckoutModalProps> = ({
             </div>
             <div>
               <h2 className="text-base font-bold text-stone-900 dark:text-stone-50 flex items-center gap-2">
-                <span>PawaPay Mobile Money Checkout</span>
+                <span>PawaPay Payment Portal</span>
                 <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-950/80 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800 font-semibold">
                   RWANDA v2
                 </span>
               </h2>
               <p className="text-xs text-stone-500 dark:text-stone-400">
-                Direct MTN Mobile Money & Airtel Money Settlement
+                Direct MTN Mobile Money &amp; Airtel Money Settlement
               </p>
             </div>
           </div>
-          <button
-            onClick={onClose}
-            className="p-1.5 rounded-lg text-stone-400 hover:text-stone-700 dark:hover:text-stone-200 hover:bg-stone-100 dark:hover:bg-stone-800 transition-colors"
-          >
-            <X className="w-5 h-5" />
-          </button>
+          <div className="flex items-center gap-1.5">
+            {onNavigateToTerminal && (
+              <button
+                type="button"
+                onClick={handleRedirectToTerminal}
+                className="p-1.5 rounded-lg text-emerald-700 hover:text-emerald-800 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 text-xs flex items-center gap-1 font-semibold transition-colors"
+                title="Open in full Payment Terminal view"
+              >
+                <ExternalLink className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Terminal</span>
+              </button>
+            )}
+            <button
+              onClick={onClose}
+              className="p-1.5 rounded-lg text-stone-400 hover:text-stone-700 dark:hover:text-stone-200 hover:bg-stone-100 dark:hover:bg-stone-800 transition-colors"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+        </div>
+
+        {/* Payment Mode Selector Pills */}
+        <div className="px-6 pt-4 pb-1">
+          <div className="p-1 rounded-xl bg-stone-100 dark:bg-stone-800 flex items-center gap-1 text-xs font-semibold">
+            <button
+              type="button"
+              onClick={() => {
+                setPaymentMode('full_order');
+                setFlowState('form');
+              }}
+              className={`flex-1 py-1.5 px-3 rounded-lg text-center transition-all ${
+                paymentMode === 'full_order'
+                  ? 'bg-white dark:bg-stone-700 text-emerald-800 dark:text-emerald-300 shadow-2xs font-bold'
+                  : 'text-stone-600 dark:text-stone-400 hover:text-stone-900'
+              }`}
+            >
+              Pay Full Order (with 2.5% fee)
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setPaymentMode('commission_fee');
+                setFlowState('form');
+              }}
+              className={`flex-1 py-1.5 px-3 rounded-lg text-center transition-all ${
+                paymentMode === 'commission_fee'
+                  ? 'bg-white dark:bg-stone-700 text-amber-700 dark:text-amber-300 shadow-2xs font-bold'
+                  : 'text-stone-600 dark:text-stone-400 hover:text-stone-900'
+              }`}
+            >
+              Pay 2.5% Platform Fee Only
+            </button>
+          </div>
         </div>
 
         {/* Content Body */}
-        <div className="p-6 space-y-5">
+        <div className="p-6 pt-4 space-y-5">
           {/* Order Summary (Locked Amount) */}
           <div className="p-4 bg-stone-50 dark:bg-stone-800/40 rounded-xl border border-stone-200 dark:border-stone-700/60 space-y-3">
             <div className="flex items-start justify-between gap-3">
@@ -190,13 +273,13 @@ export const PawaPayCheckoutModal: React.FC<PawaPayCheckoutModalProps> = ({
               </div>
               <div className="text-right">
                 <span className="text-[10px] uppercase font-semibold text-stone-400 block">
-                  Verified Total
+                  {paymentMode === 'commission_fee' ? '2.5% Platform Fee' : 'Total Order GMV'}
                 </span>
                 <span className="text-lg font-bold font-mono text-emerald-800 dark:text-emerald-400">
-                  {Number(order.totalAmountRwf).toLocaleString()} RWF
+                  {activePayAmountRwf.toLocaleString()} RWF
                 </span>
                 <span className="text-[10px] text-stone-400 flex items-center gap-1 justify-end">
-                  <Lock className="w-3 h-3 text-stone-400" /> Amount locked
+                  <Lock className="w-3 h-3 text-stone-400" /> Tamper-proof lock
                 </span>
               </div>
             </div>
@@ -205,9 +288,12 @@ export const PawaPayCheckoutModal: React.FC<PawaPayCheckoutModalProps> = ({
             <div className="pt-2 border-t border-stone-200/60 dark:border-stone-700/60 grid grid-cols-2 gap-2 text-[11px]">
               <div>
                 <span className="text-stone-500">Platform Fee (2.5%):</span>{' '}
-                <span className="font-mono font-medium text-stone-700 dark:text-stone-300">
+                <span className="font-mono font-bold text-amber-700 dark:text-amber-400">
                   {commissionFeeRwf.toLocaleString()} RWF
                 </span>
+                {order.commissionStatus === 'paid' && (
+                  <span className="ml-1 text-[9px] font-bold text-emerald-600 uppercase">Paid</span>
+                )}
               </div>
               <div className="text-right">
                 <span className="text-stone-500">Farmer Escrow Payout:</span>{' '}
@@ -284,7 +370,7 @@ export const PawaPayCheckoutModal: React.FC<PawaPayCheckoutModalProps> = ({
                   />
                 </div>
                 <p className="text-[11px] text-stone-500 mt-1">
-                  Format: 12-digit number (e.g. 25078... or 078...). PawaPay will dispatch a USSD push prompt to this handset.
+                  PawaPay will dispatch a USSD push prompt to this Rwandan handset. Enter your PIN on handset to confirm.
                 </p>
               </div>
 
@@ -295,13 +381,13 @@ export const PawaPayCheckoutModal: React.FC<PawaPayCheckoutModalProps> = ({
                     <Info className="w-3.5 h-3.5 text-stone-400" />
                     PawaPay Official Sandbox Test Numbers:
                   </span>
-                  <span className="text-[10px] text-emerald-700 font-semibold">Click to populate</span>
+                  <span className="text-[10px] text-emerald-700 font-semibold">Click to test</span>
                 </div>
                 <div className="grid grid-cols-2 gap-1.5">
                   <button
                     type="button"
                     onClick={() => setTestPhone('250783456789', 'MTN_MOMO_RWA')}
-                    className="text-left px-2 py-1.5 rounded bg-white dark:bg-stone-700 border border-stone-200 dark:border-stone-600 hover:border-emerald-500 text-[11px] text-stone-800 dark:text-stone-200 transition-colors"
+                    className="text-left px-2 py-1.5 rounded bg-white dark:bg-stone-700 border border-stone-200 dark:border-stone-600 hover:border-emerald-500 text-[11px] text-stone-800 dark:text-stone-200 transition-colors cursor-pointer"
                   >
                     <span className="font-mono font-bold block text-emerald-700 dark:text-emerald-400">
                       250783456789
@@ -312,7 +398,7 @@ export const PawaPayCheckoutModal: React.FC<PawaPayCheckoutModalProps> = ({
                   <button
                     type="button"
                     onClick={() => setTestPhone('250783456039', 'MTN_MOMO_RWA')}
-                    className="text-left px-2 py-1.5 rounded bg-white dark:bg-stone-700 border border-stone-200 dark:border-stone-600 hover:border-rose-500 text-[11px] text-stone-800 dark:text-stone-200 transition-colors"
+                    className="text-left px-2 py-1.5 rounded bg-white dark:bg-stone-700 border border-stone-200 dark:border-stone-600 hover:border-rose-500 text-[11px] text-stone-800 dark:text-stone-200 transition-colors cursor-pointer"
                   >
                     <span className="font-mono font-bold block text-rose-600 dark:text-rose-400">
                       250783456039
@@ -323,7 +409,7 @@ export const PawaPayCheckoutModal: React.FC<PawaPayCheckoutModalProps> = ({
                   <button
                     type="button"
                     onClick={() => setTestPhone('250783456029', 'MTN_MOMO_RWA')}
-                    className="text-left px-2 py-1.5 rounded bg-white dark:bg-stone-700 border border-stone-200 dark:border-stone-600 hover:border-amber-500 text-[11px] text-stone-800 dark:text-stone-200 transition-colors"
+                    className="text-left px-2 py-1.5 rounded bg-white dark:bg-stone-700 border border-stone-200 dark:border-stone-600 hover:border-amber-500 text-[11px] text-stone-800 dark:text-stone-200 transition-colors cursor-pointer"
                   >
                     <span className="font-mono font-bold block text-amber-600 dark:text-amber-400">
                       250783456029
@@ -334,7 +420,7 @@ export const PawaPayCheckoutModal: React.FC<PawaPayCheckoutModalProps> = ({
                   <button
                     type="button"
                     onClick={() => setTestPhone('250783456129', 'MTN_MOMO_RWA')}
-                    className="text-left px-2 py-1.5 rounded bg-white dark:bg-stone-700 border border-stone-200 dark:border-stone-600 hover:border-blue-500 text-[11px] text-stone-800 dark:text-stone-200 transition-colors"
+                    className="text-left px-2 py-1.5 rounded bg-white dark:bg-stone-700 border border-stone-200 dark:border-stone-600 hover:border-blue-500 text-[11px] text-stone-800 dark:text-stone-200 transition-colors cursor-pointer"
                   >
                     <span className="font-mono font-bold block text-blue-600 dark:text-blue-400">
                       250783456129
@@ -361,32 +447,51 @@ export const PawaPayCheckoutModal: React.FC<PawaPayCheckoutModalProps> = ({
               )}
 
               {/* Actions */}
-              <div className="pt-2 flex items-center justify-end gap-3">
-                <button
-                  type="button"
-                  onClick={onClose}
-                  className="px-4 py-2 text-xs font-semibold rounded-lg text-stone-600 dark:text-stone-300 hover:bg-stone-100 dark:hover:bg-stone-800 transition-colors"
-                >
-                  Cancel
-                </button>
+              <div className="pt-2 flex items-center justify-between gap-3">
+                {onNavigateToTerminal ? (
+                  <button
+                    type="button"
+                    onClick={handleRedirectToTerminal}
+                    className="text-xs text-emerald-700 dark:text-emerald-400 hover:underline flex items-center gap-1 font-semibold"
+                  >
+                    <ExternalLink className="w-3.5 h-3.5" />
+                    <span>Open in Terminal Portal</span>
+                  </button>
+                ) : (
+                  <div />
+                )}
 
-                <button
-                  type="submit"
-                  disabled={isSubmitting}
-                  className="px-5 py-2.5 text-xs font-bold rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white shadow-md shadow-emerald-700/20 flex items-center gap-2 disabled:opacity-50 transition-all cursor-pointer"
-                >
-                  {isSubmitting ? (
-                    <>
-                      <RefreshCw className="w-4 h-4 animate-spin" />
-                      <span>Dispatching to PawaPay...</span>
-                    </>
-                  ) : (
-                    <>
-                      <span>Pay {Number(order.totalAmountRwf).toLocaleString()} RWF</span>
-                      <ArrowRight className="w-4 h-4" />
-                    </>
-                  )}
-                </button>
+                <div className="flex items-center gap-2.5">
+                  <button
+                    type="button"
+                    onClick={onClose}
+                    className="px-4 py-2 text-xs font-semibold rounded-lg text-stone-600 dark:text-stone-300 hover:bg-stone-100 dark:hover:bg-stone-800 transition-colors"
+                  >
+                    Cancel
+                  </button>
+
+                  <button
+                    type="submit"
+                    disabled={isSubmitting}
+                    className="px-5 py-2.5 text-xs font-bold rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white shadow-md shadow-emerald-700/20 flex items-center gap-2 disabled:opacity-50 transition-all cursor-pointer"
+                  >
+                    {isSubmitting ? (
+                      <>
+                        <RefreshCw className="w-4 h-4 animate-spin" />
+                        <span>Connecting PawaPay...</span>
+                      </>
+                    ) : (
+                      <>
+                        <span>
+                          {paymentMode === 'commission_fee'
+                            ? `Pay 2.5% Fee: ${commissionFeeRwf.toLocaleString()} RWF`
+                            : `Pay Order: ${fullOrderTotalRwf.toLocaleString()} RWF`}
+                        </span>
+                        <ArrowRight className="w-4 h-4" />
+                      </>
+                    )}
+                  </button>
+                </div>
               </div>
             </form>
           )}
@@ -448,14 +553,16 @@ export const PawaPayCheckoutModal: React.FC<PawaPayCheckoutModalProps> = ({
 
               <div>
                 <h3 className="text-lg font-bold text-stone-900 dark:text-stone-100">
-                  Payment Verified & Settled!
+                  {paymentMode === 'commission_fee'
+                    ? '2.5% Platform Fee Settled!'
+                    : 'Order Payment Verified & Settled!'}
                 </h3>
                 <p className="text-xs text-stone-600 dark:text-stone-300 mt-1 max-w-sm mx-auto">
                   PawaPay confirmed the mobile money deposit for{' '}
                   <span className="font-mono font-bold text-emerald-700 dark:text-emerald-400">
-                    {Number(order.totalAmountRwf).toLocaleString()} RWF
+                    {activePayAmountRwf.toLocaleString()} RWF
                   </span>
-                  . Funds are now secured in AgriBridge escrow.
+                  . Transaction has been recorded and verified on the AgriBridge ledger.
                 </p>
               </div>
 
@@ -480,13 +587,25 @@ export const PawaPayCheckoutModal: React.FC<PawaPayCheckoutModalProps> = ({
                 </div>
               </div>
 
-              <button
-                type="button"
-                onClick={onClose}
-                className="w-full py-2.5 text-xs font-bold rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm transition-all"
-              >
-                Close & Return to Orders
-              </button>
+              <div className="flex gap-2.5">
+                {onNavigateToTerminal && (
+                  <button
+                    type="button"
+                    onClick={handleRedirectToTerminal}
+                    className="flex-1 py-2.5 text-xs font-bold rounded-lg border border-emerald-600 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 transition-all flex items-center justify-center gap-1.5"
+                  >
+                    <ExternalLink className="w-3.5 h-3.5" />
+                    <span>View in Terminal Portal</span>
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="flex-1 py-2.5 text-xs font-bold rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm transition-all"
+                >
+                  Close &amp; Return to Orders
+                </button>
+              </div>
             </div>
           )}
 

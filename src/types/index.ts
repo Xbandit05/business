@@ -48,12 +48,14 @@ export type PackagingType =
   | '50kg Woven Bags'
   | '100kg Grain Bags'
   | 'Bulk Truckload'
-  | 'Standard Crates';
+  | 'Standard Crates'
+  | string;
 
 export type DeliveryOption =
   | 'Farmgate Pickup (Buyer arranges transport)'
   | 'Nyagatare Aggregation Center'
-  | 'Delivered to Kigali Hub';
+  | 'Delivered to Kigali Hub'
+  | string;
 
 export type OfferStatus =
   | 'submitted'
@@ -63,13 +65,14 @@ export type OfferStatus =
   | 'completed';
 
 export type OrderStatus =
+  | 'pending'
   | 'pending_dispatch'
   | 'in_transit'
   | 'delivered_at_aggregation'
   | 'completed'
   | 'disputed';
 
-export type CommissionStatus = 'calculated' | 'due' | 'paid' | 'waived' | 'reversed';
+export type CommissionStatus = 'pending' | 'calculated' | 'due' | 'paid' | 'waived' | 'reversed';
 
 export type UserCategory = 'seller' | 'buyer' | 'supplier' | 'agent' | 'expert' | 'admin';
 
@@ -94,6 +97,8 @@ export interface UserProfile {
   fullName: string;
   email?: string;
   phoneNumber: string;
+  phone?: string;
+  organization?: string;
   role: UserRole;
   category?: UserCategory;
   nicheSpecialty?: string;
@@ -263,36 +268,42 @@ export interface BuyerOffer {
 
 export interface Order {
   id: string;
-  orderNumber: string;
-  offerId: string;
-  listingId: string;
-  cropName: string;
+  orderNumber?: string;
+  offerId?: string;
+  listingId?: string;
+  cropName?: string;
+  cropType?: CropType | string;
   variety: string;
-  farmerId: string;
-  farmerName: string;
-  farmerPhone: string;
+  farmerId?: string;
+  farmerName?: string;
+  farmerPhone?: string;
+  sellerId?: string;
+  sellerName?: string;
   buyerId: string;
   buyerName: string;
   buyerPhone: string;
   buyerCompany?: string;
   district?: string;
-  sector: NyagatareSector;
+  sector?: NyagatareSector;
   quantityKg: number;
-  unitPriceRwf: number;
+  unitPriceRwf?: number;
+  pricePerKgRwf?: number;
   totalAmountRwf: number;
-  commissionRatePercent: number; // e.g. 2.5%
+  commissionRatePercent?: number; // e.g. 2.5%
   commissionAmountRwf: number;
   commissionStatus: CommissionStatus;
   status: OrderStatus;
-  deliveryOption: DeliveryOption;
-  dispatchDate: string;
-  paymentMethod: 'Mobile Money (MTN/Airtel)' | 'Bank Transfer (BPR/Equity)' | 'Escrow via Sacco';
+  deliveryOption?: DeliveryOption;
+  deliveryLocation?: string;
+  pickupDate?: string;
+  dispatchDate?: string;
+  paymentMethod?: 'Mobile Money (MTN/Airtel)' | 'Bank Transfer (BPR/Equity)' | 'Escrow via Sacco' | string;
   paymentStatus?: 'unpaid' | 'payment_pending' | 'partially_paid' | 'paid' | 'payment_failed' | 'refunded';
   pawapayDepositId?: string;
-  receiptCode: string;
+  receiptCode?: string;
   isDemo: boolean;
   createdAt: string;
-  updatedAt: string;
+  updatedAt?: string;
 }
 
 export type ExpenseCategory =
@@ -632,5 +643,73 @@ export interface LocationImportReport {
   orphansDetected: number;
   validationStatus: 'valid' | 'has_warnings' | 'failed';
   warnings: string[];
+}
+
+// ==========================================
+// MODULE 3: BUYER-FARMER PRICE NEGOTIATION INBOX
+// ==========================================
+
+export type NegotiationMessageSenderRole = 'buyer' | 'farmer' | 'system';
+
+export interface PriceProposal {
+  id: string;
+  proposedPricePerKgRwf: number;
+  requestedQuantityKg: number;
+  totalAmountRwf: number;
+  platformFeeRwf: number; // 2.5% platform commission
+  proposedDeliveryOption?: DeliveryOption;
+  proposedPickupDate?: string;
+  termsNotes?: string;
+  status: 'pending' | 'accepted' | 'declined' | 'countered' | 'converted_to_order';
+  counterPricePerKgRwf?: number;
+  counterNotes?: string;
+  proposerRole: 'buyer' | 'farmer';
+  createdAt: string;
+  respondedAt?: string;
+}
+
+export interface NegotiationMessage {
+  id: string;
+  threadId: string;
+  senderId: string;
+  senderName: string;
+  senderRole: NegotiationMessageSenderRole;
+  content: string;
+  timestamp: string;
+  priceProposal?: PriceProposal;
+  isRead?: boolean;
+}
+
+export interface NegotiationThread {
+  id: string;
+  listingId: string;
+  cropName: string;
+  variety: string;
+  cropType?: CropType | string;
+  listingCropType?: CropType;
+  listingUnitPriceRwf: number;
+  quantityAvailableKg: number;
+  minimumOrderKg?: number;
+  deliveryOption?: DeliveryOption;
+  farmerId: string;
+  farmerName: string;
+  farmerPhone: string;
+  farmerCoop?: string;
+  farmerDistrict: string;
+  farmerSector: string;
+  buyerId: string;
+  buyerName: string;
+  buyerPhone: string;
+  buyerCompany?: string;
+  status: 'negotiating' | 'price_agreed' | 'order_placed' | 'order_created' | 'archived';
+  currentAgreedPricePerKgRwf?: number;
+  latestPriceProposal?: PriceProposal;
+  latestMessageSnippet?: string;
+  lastMessageTimestamp: string;
+  unreadCountBuyer: number;
+  unreadCountFarmer: number;
+  orderId?: string;
+  convertedOrderId?: string;
+  messages: NegotiationMessage[];
 }
 

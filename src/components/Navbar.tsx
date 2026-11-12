@@ -20,7 +20,7 @@ export type ActiveTabType =
   | 'dashboard'
   | 'farmer'
   | 'marketplace'
-  | 'ai'
+  | 'inbox'
   | 'offers'
   | 'orders'
   | 'finance'
@@ -30,7 +30,8 @@ export type ActiveTabType =
   | 'training'
   | 'weather'
   | 'agent'
-  | 'admin';
+  | 'admin'
+  | 'ai';
 
 interface NavbarProps {
   activeTab: ActiveTabType;
@@ -71,12 +72,18 @@ export const Navbar: React.FC<NavbarProps> = ({
         return language === 'rw' ? 'Imirima & Plots' : 'Farms & Plots Management';
       case 'marketplace':
         return language === 'rw' ? 'Isoko ry\'Imyaka' : 'Produce Marketplace';
+      case 'inbox':
+        return language === 'rw' ? 'Ubutumwa & Ibiciro' : 'Negotiation Inbox & Portal';
       case 'offers':
         return language === 'rw' ? 'Ibiciro by\'Abaguzi' : 'Buyer Purchase Offers';
       case 'orders':
         return language === 'rw' ? 'Amasezerano & Imitwaro' : 'Orders & Deals';
+      case 'terminal':
+        return language === 'rw' ? 'Ubwishyu bwa PawaPay' : 'Payment Verification Terminal';
       case 'finance':
         return language === 'rw' ? 'Igitabo cy\'Imari' : 'Farm Finance Ledger';
+      case 'locations':
+        return language === 'rw' ? 'Imiterere y\'Uturere' : 'Rwanda Locations Registry';
       case 'ai':
         return 'AgriBridge AI Companion';
       case 'directory':

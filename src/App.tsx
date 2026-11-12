@@ -40,9 +40,10 @@ import { OfflineIndicator } from './components/common/OfflineIndicator.tsx';
 import { SidebarNav } from './components/navigation/SidebarNav.tsx';
 import { MobileBottomNav } from './components/navigation/MobileBottomNav.tsx';
 import { AgriBridgeDashboardView } from './components/dashboard/AgriBridgeDashboardView.tsx';
+import { InboxPortalView } from './components/inbox/InboxPortalView.tsx';
 
 function AgriBridgeDashboard() {
-  const { role } = useApp();
+  const { role, startNegotiationWithListing } = useApp();
   const { t } = useLanguage();
 
   const [activeTab, setActiveTab] = useState<ActiveTabType>('dashboard');
@@ -67,6 +68,11 @@ function AgriBridgeDashboard() {
 
   const handleSelectListingForOffer = (listing: ProduceListing) => {
     setSelectedOfferListing(listing);
+  };
+
+  const handleStartNegotiation = (listing: ProduceListing) => {
+    startNegotiationWithListing(listing);
+    setActiveTab('inbox');
   };
 
   return (
@@ -115,7 +121,14 @@ function AgriBridgeDashboard() {
           )}
 
           {activeTab === 'marketplace' && (
-            <MarketplaceView onSelectListingForOffer={handleSelectListingForOffer} />
+            <MarketplaceView
+              onSelectListingForOffer={handleSelectListingForOffer}
+              onStartNegotiation={handleStartNegotiation}
+            />
+          )}
+
+          {activeTab === 'inbox' && (
+            <InboxPortalView onNavigateTab={(tab) => setActiveTab(tab as ActiveTabType)} />
           )}
 
           {activeTab === 'ai' && (
@@ -126,9 +139,13 @@ function AgriBridgeDashboard() {
             />
           )}
 
-          {activeTab === 'offers' && <FarmerOfferManager />}
+          {activeTab === 'offers' && (
+            <FarmerOfferManager onNavigateTab={(tab) => setActiveTab(tab)} />
+          )}
 
-          {activeTab === 'orders' && <OrdersView />}
+          {activeTab === 'orders' && (
+            <OrdersView onNavigateTab={(tab) => setActiveTab(tab)} />
+          )}
 
           {activeTab === 'finance' && <FarmFinanceLedger />}
 
@@ -136,7 +153,9 @@ function AgriBridgeDashboard() {
 
           {activeTab === 'locations' && <LocationManagementView />}
 
-          {activeTab === 'directory' && <SupplierExpertDirectory />}
+          {activeTab === 'directory' && (
+            <SupplierExpertDirectory onNavigateTab={(tab) => setActiveTab(tab as ActiveTabType)} />
+          )}
 
           {activeTab === 'training' && <FarmerTrainingCenter />}
 

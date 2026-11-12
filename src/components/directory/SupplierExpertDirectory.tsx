@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useLanguage } from '../../context/LanguageContext.tsx';
 import { useApp } from '../../context/AppContext.tsx';
 import { AgroSupplier, AgronomistExpert } from '../../types/index.ts';
+import { REGISTERED_FARMERS_ROSTER, RegisteredFarmerProfile } from '../../data/nyagatare.ts';
 import {
   Store,
   GraduationCap,
@@ -16,15 +17,26 @@ import {
   Tag,
   X,
   Send,
+  Users,
+  ShieldCheck,
+  Award,
+  ArrowRight,
+  Sparkles,
 } from 'lucide-react';
 
-export const SupplierExpertDirectory: React.FC = () => {
-  const { t } = useLanguage();
-  const { suppliers, experts, inquiries, submitInquiry, currentUser } = useApp();
+interface SupplierExpertDirectoryProps {
+  onNavigateTab?: (tab: string) => void;
+}
 
-  const [activeTab, setActiveTab] = useState<'suppliers' | 'experts' | 'inquiries'>('suppliers');
+export const SupplierExpertDirectory: React.FC<SupplierExpertDirectoryProps> = ({ onNavigateTab }) => {
+  const { t } = useLanguage();
+  const { suppliers, experts, inquiries, submitInquiry, currentUser, listings, startNegotiationWithListing } = useApp();
+
+  const [activeTab, setActiveTab] = useState<'farmers' | 'suppliers' | 'experts' | 'inquiries'>('farmers');
   const [selectedExpert, setSelectedExpert] = useState<AgronomistExpert | null>(null);
   const [selectedDistrict, setSelectedDistrict] = useState<string>('all');
+  const [farmerSearch, setFarmerSearch] = useState<string>('');
+  const [selectedSector, setSelectedSector] = useState<string>('all');
 
   // Inquiry form states
   const [inquiryCrop, setInquiryCrop] = useState('Maize (PAN 53)');
@@ -59,12 +71,24 @@ export const SupplierExpertDirectory: React.FC = () => {
             {t('dir.title')}
           </h1>
           <p className="mt-1 text-sm text-stone-600 dark:text-stone-400">
-            {t('dir.subtitle')}
+            Discover verified producers, input dealers, and agronomy specialists across Rwanda.
           </p>
         </div>
 
         {/* Tab Switcher */}
-        <div className="inline-flex rounded-lg border border-stone-300 dark:border-stone-700 bg-white dark:bg-stone-900 p-1 shadow-2xs">
+        <div className="inline-flex rounded-lg border border-stone-300 dark:border-stone-700 bg-white dark:bg-stone-900 p-1 shadow-2xs flex-wrap">
+          <button
+            onClick={() => setActiveTab('farmers')}
+            className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-md transition-colors ${
+              activeTab === 'farmers'
+                ? 'bg-emerald-800 text-white shadow-2xs'
+                : 'text-stone-600 dark:text-stone-300 hover:text-stone-900'
+            }`}
+          >
+            <Users className="w-3.5 h-3.5" />
+            <span>Farmers & Producers ({REGISTERED_FARMERS_ROSTER.length})</span>
+          </button>
+
           <button
             onClick={() => setActiveTab('suppliers')}
             className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-md transition-colors ${
@@ -103,26 +127,212 @@ export const SupplierExpertDirectory: React.FC = () => {
         </div>
       </div>
 
-      {/* District Filter Bar */}
+      {/* District & Sector Filter Bar */}
       {activeTab !== 'inquiries' && (
-        <div className="flex items-center gap-2 overflow-x-auto pb-1 text-xs">
-          <span className="font-bold text-stone-500 uppercase tracking-wider text-[11px] shrink-0">
-            District:
-          </span>
-          {['all', 'Nyagatare', 'Musanze', 'Bugesera'].map((dist) => (
-            <button
-              key={dist}
-              type="button"
-              onClick={() => setSelectedDistrict(dist)}
-              className={`px-3 py-1.5 rounded-lg font-semibold transition-all shrink-0 border ${
-                selectedDistrict === dist
-                  ? 'bg-emerald-800 text-white border-emerald-800 shadow-2xs'
-                  : 'bg-white dark:bg-stone-900 border-stone-300 dark:border-stone-700 text-stone-700 dark:text-stone-300 hover:bg-stone-50'
-              }`}
-            >
-              {dist === 'all' ? 'All Rwanda Districts' : dist}
-            </button>
-          ))}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-stone-50 dark:bg-stone-800/40 p-3 rounded-xl border border-stone-200 dark:border-stone-700">
+          <div className="flex items-center gap-2 overflow-x-auto pb-1 text-xs">
+            <span className="font-bold text-stone-500 uppercase tracking-wider text-[11px] shrink-0">
+              District:
+            </span>
+            {['all', 'Nyagatare', 'Musanze', 'Bugesera'].map((dist) => (
+              <button
+                key={dist}
+                type="button"
+                onClick={() => setSelectedDistrict(dist)}
+                className={`px-3 py-1.5 rounded-lg font-semibold transition-all shrink-0 border ${
+                  selectedDistrict === dist
+                    ? 'bg-emerald-800 text-white border-emerald-800 shadow-2xs'
+                    : 'bg-white dark:bg-stone-900 border-stone-300 dark:border-stone-700 text-stone-700 dark:text-stone-300 hover:bg-stone-50'
+                }`}
+              >
+                {dist === 'all' ? 'All Rwanda Districts' : dist}
+              </button>
+            ))}
+          </div>
+
+          {activeTab === 'farmers' && (
+            <div className="flex items-center gap-2">
+              <div className="relative">
+                <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-stone-400" />
+                <input
+                  type="text"
+                  placeholder="Filter farmer name, crop, co-op..."
+                  value={farmerSearch}
+                  onChange={(e) => setFarmerSearch(e.target.value)}
+                  className="pl-8 pr-3 py-1.5 text-xs bg-white dark:bg-stone-900 border border-stone-300 dark:border-stone-700 rounded-lg text-stone-800 dark:text-stone-200 focus:outline-none focus:ring-1 focus:ring-emerald-500 w-48 sm:w-64"
+                />
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* FARMERS & PRODUCERS TAB */}
+      {activeTab === 'farmers' && (
+        <div className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {REGISTERED_FARMERS_ROSTER
+              .filter((farmer) => {
+                const matchesDist = selectedDistrict === 'all' || farmer.district === selectedDistrict;
+                const matchesQuery =
+                  !farmerSearch.trim() ||
+                  farmer.name.toLowerCase().includes(farmerSearch.toLowerCase()) ||
+                  farmer.sector.toLowerCase().includes(farmerSearch.toLowerCase()) ||
+                  farmer.cooperativeName.toLowerCase().includes(farmerSearch.toLowerCase()) ||
+                  farmer.primaryCrops.some((c) => c.toLowerCase().includes(farmerSearch.toLowerCase()));
+                return matchesDist && matchesQuery;
+              })
+              .map((farmer) => {
+                const activeListing = listings.find(
+                  (l) => l.farmerName.toLowerCase() === farmer.name.toLowerCase() || l.farmerPhone === farmer.phone
+                );
+
+                return (
+                  <div
+                    key={farmer.id}
+                    className="p-5 bg-white dark:bg-stone-900 rounded-xl border border-stone-200 dark:border-stone-800 shadow-2xs hover:border-emerald-600/50 transition-all flex flex-col justify-between space-y-4"
+                  >
+                    <div className="space-y-3">
+                      {/* Farmer Header */}
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex items-center gap-3">
+                          <div className="w-11 h-11 rounded-full bg-gradient-to-tr from-emerald-700 to-green-600 text-white font-extrabold text-sm flex items-center justify-center uppercase shadow-sm shrink-0">
+                            {farmer.name.slice(0, 2)}
+                          </div>
+                          <div>
+                            <h3 className="text-base font-bold text-stone-900 dark:text-stone-100 flex items-center gap-1.5">
+                              <span>{farmer.name}</span>
+                              {farmer.isVerified && (
+                                <ShieldCheck className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                              )}
+                            </h3>
+                            <div className="flex items-center gap-1.5 text-xs text-stone-500 mt-0.5">
+                              <MapPin className="w-3.5 h-3.5 text-emerald-700 shrink-0" />
+                              <span className="font-semibold text-stone-700 dark:text-stone-300">
+                                {farmer.sector}, {farmer.district}
+                              </span>
+                              <span>·</span>
+                              <span className="text-[11px] text-stone-400">{farmer.cell} Cell</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-1 bg-amber-50 dark:bg-amber-950/40 px-2 py-0.5 rounded text-xs font-bold text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-800 shrink-0">
+                          <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
+                          <span>{farmer.rating}</span>
+                        </div>
+                      </div>
+
+                      {/* Cooperative & Scale */}
+                      <div className="p-2.5 bg-stone-50 dark:bg-stone-800/60 rounded-lg text-xs space-y-1">
+                        <div className="flex items-center justify-between text-stone-600 dark:text-stone-300">
+                          <span className="font-semibold text-emerald-800 dark:text-emerald-400">
+                            {farmer.cooperativeName}
+                          </span>
+                          <span className="font-mono text-stone-500">{farmer.totalAreaHa} Ha Farm</span>
+                        </div>
+                        <p className="text-stone-600 dark:text-stone-400 text-[11px]">
+                          {farmer.specialty}
+                        </p>
+                      </div>
+
+                      {/* Bio */}
+                      <p className="text-xs text-stone-600 dark:text-stone-300 line-clamp-2 leading-relaxed">
+                        {farmer.bio}
+                      </p>
+
+                      {/* Primary Crops Tags */}
+                      <div>
+                        <span className="text-[10px] font-semibold uppercase text-stone-400 block mb-1">
+                          Primary Harvest Commodities:
+                        </span>
+                        <div className="flex flex-wrap gap-1">
+                          {farmer.primaryCrops.map((crop) => (
+                            <span
+                              key={crop}
+                              className="text-[11px] bg-emerald-50 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/60 px-2 py-0.5 rounded-md font-medium"
+                            >
+                              {crop}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Metrics */}
+                      <div className="grid grid-cols-2 gap-2 text-[11px] text-stone-500 pt-1 border-t border-stone-100 dark:border-stone-800">
+                        <div>
+                          <span className="text-stone-400 block">Deals Completed:</span>
+                          <span className="font-bold text-stone-800 dark:text-stone-200">
+                            {farmer.totalCompletedDeals} transactions
+                          </span>
+                        </div>
+                        <div>
+                          <span className="text-stone-400 block">Experience:</span>
+                          <span className="font-bold text-stone-800 dark:text-stone-200">
+                            {farmer.experienceYears} Years
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Actions: Negotiate Price & Call */}
+                    <div className="pt-3 border-t border-stone-100 dark:border-stone-800 flex items-center justify-between gap-2">
+                      <a
+                        href={`tel:${farmer.phone}`}
+                        className="px-2.5 py-1.5 text-xs text-stone-600 dark:text-stone-300 hover:text-emerald-700 flex items-center gap-1 font-mono"
+                      >
+                        <Phone className="w-3.5 h-3.5" />
+                        <span>{farmer.phone}</span>
+                      </a>
+
+                      <button
+                        onClick={() => {
+                          if (activeListing) {
+                            startNegotiationWithListing(activeListing);
+                          } else {
+                            const syntheticListing = {
+                              id: `listing_auto_${farmer.id}`,
+                              farmerId: farmer.id,
+                              farmerName: farmer.name,
+                              farmerPhone: farmer.phone,
+                              cropType: farmer.primaryCrops[0]?.toLowerCase().includes('maize')
+                                ? ('maize' as const)
+                                : farmer.primaryCrops[0]?.toLowerCase().includes('bean')
+                                ? ('beans' as const)
+                                : ('rice' as const),
+                              cropName: farmer.primaryCrops[0] || 'Produce Batch',
+                              variety: 'Standard Certified Lot',
+                              quantityKg: 2500,
+                              quantityAvailableKg: 2500,
+                              unitPriceRwf: 380,
+                              minimumOrderKg: 500,
+                              qualityGrade: 'Grade 1 (Premium / Export)' as const,
+                              packaging: '50kg Woven Bags',
+                              district: farmer.district,
+                              sector: farmer.sector as any,
+                              cooperativeName: farmer.cooperativeName,
+                              deliveryOption: 'Nyagatare Aggregation Center',
+                              harvestDate: new Date().toISOString().split('T')[0],
+                              status: 'active' as const,
+                              isDemo: true,
+                              createdAt: new Date().toISOString(),
+                            };
+                            startNegotiationWithListing(syntheticListing);
+                          }
+                          if (onNavigateTab) {
+                            onNavigateTab('inbox');
+                          }
+                        }}
+                        className="px-3.5 py-1.5 text-xs font-bold bg-emerald-700 hover:bg-emerald-600 text-white rounded-lg shadow-sm transition-all flex items-center gap-1.5"
+                      >
+                        <MessageSquare className="w-3.5 h-3.5" />
+                        <span>Negotiate Price</span>
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+          </div>
         </div>
       )}
 

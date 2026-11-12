@@ -27,6 +27,7 @@ import {
   VolumeX,
   CreditCard,
   MapPin,
+  MessageSquare,
 } from 'lucide-react';
 
 interface SidebarNavProps {
@@ -72,6 +73,7 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({
     { id: 'dashboard', labelEn: 'Dashboard', labelRw: 'Ahabanza', icon: LayoutDashboard },
     { id: 'farmer', labelEn: 'Farms & Plots', labelRw: 'Imirima & Plots', icon: Sprout },
     { id: 'marketplace', labelEn: 'Produce Market', labelRw: 'Isoko ry\'Imyaka', icon: ShoppingBag },
+    { id: 'inbox', labelEn: 'Negotiation Inbox', labelRw: 'Ubutumwa & Ibiciro', icon: MessageSquare, badge: 'Deals' },
     { id: 'offers', labelEn: 'Buyer Offers', labelRw: 'Ibiciro by\'Abaguzi', icon: Handshake },
     { id: 'orders', labelEn: 'Orders & Deals', labelRw: 'Amasezerano', icon: FileText },
     { id: 'terminal', labelEn: 'Payment Terminal', labelRw: 'Ubwishyu & Terminal', icon: CreditCard, badge: '2.5%' },

@@ -22,6 +22,7 @@ import {
   Award,
   CreditCard,
   MapPin,
+  MessageSquare,
 } from 'lucide-react';
 
 interface MobileBottomNavProps {
@@ -64,6 +65,14 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
     icon: React.ComponentType<{ className?: string }>;
     visible?: boolean;
   }[] = [
+    {
+      id: 'inbox',
+      labelEn: 'Negotiation Inbox',
+      labelRw: 'Ubutumwa & Ibiciro',
+      descEn: 'Negotiate produce rates with farmers before ordering',
+      descRw: 'Ganira n\'abahinzi ku biciro mbere yo gutumiza',
+      icon: MessageSquare,
+    },
     {
       id: 'offers',
       labelEn: 'Buyer Offers',

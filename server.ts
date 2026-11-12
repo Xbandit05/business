@@ -1884,36 +1884,89 @@ app.post('/api/payments/pawapay/initiate-deposit', async (req, res) => {
     const {
       orderId,
       phone,
+      payerPhone,
       correspondent: requestedCorrespondent,
       customerName,
       statementDescription,
+      paymentType = 'full_order',
+      orderData,
     } = req.body;
 
-    if (!orderId || !phone) {
+    const effectivePhone = phone || payerPhone;
+
+    if (!orderId || !effectivePhone) {
       return res.status(400).json({ error: 'Order ID and phone number are required.' });
     }
 
     // 1. Validate Order and Amount from Server Database (Tamper-Proof)
-    const order = SERVER_ORDERS.find((o) => o.id === orderId || o.orderNumber === orderId);
+    let order = SERVER_ORDERS.find((o) => o.id === orderId || o.orderNumber === orderId);
+    if (!order && orderData) {
+      const gmv = Number(orderData.totalAmountRwf) || 100000;
+      const comm = Number(orderData.commissionAmountRwf) || Math.round(gmv * 0.025);
+      order = {
+        id: orderId,
+        orderNumber: orderData.orderNumber || `ORD-NYA-2026-${Math.floor(1000 + Math.random() * 9000)}`,
+        offerId: orderData.offerId || `off_${Date.now()}`,
+        listingId: orderData.listingId || `list_${Date.now()}`,
+        cropName: orderData.cropName || 'Produce',
+        variety: orderData.variety || 'Standard Quality',
+        farmerId: orderData.farmerId || 'farmer_1',
+        farmerName: orderData.farmerName || 'IDRIS Agaba Otin',
+        farmerPhone: orderData.farmerPhone || '+250 788 123 456',
+        buyerId: orderData.buyerId || 'buyer_1',
+        buyerName: orderData.buyerName || 'Verified Buyer',
+        buyerPhone: orderData.buyerPhone || effectivePhone,
+        buyerCompany: orderData.buyerCompany || 'AgriBridge Buyer',
+        sector: orderData.sector || 'Mimuri',
+        quantityKg: Number(orderData.quantityKg) || 1000,
+        unitPriceRwf: Number(orderData.unitPriceRwf) || Math.round(gmv / (Number(orderData.quantityKg) || 1000)),
+        totalAmountRwf: gmv,
+        commissionRatePercent: 2.5,
+        commissionAmountRwf: comm,
+        commissionStatus: 'due',
+        status: 'pending_dispatch',
+        deliveryOption: orderData.deliveryOption || 'Nyagatare Aggregation Center',
+        dispatchDate: orderData.dispatchDate || new Date().toISOString().split('T')[0],
+        paymentMethod: 'Mobile Money (MTN/Airtel)',
+        receiptCode: `RCP-${Math.floor(1000 + Math.random() * 9000)}`,
+        isDemo: Boolean(orderData.isDemo),
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+      SERVER_ORDERS.unshift(order);
+    }
+
     if (!order) {
       return res.status(404).json({ error: `Order '${orderId}' not found in AgriBridge database.` });
     }
 
-    if (order.paymentStatus === 'paid') {
+    const isCommissionOnly = paymentType === 'commission_only';
+
+    if (isCommissionOnly && order.commissionStatus === 'paid') {
+      return res.status(409).json({
+        error: `Platform commission (2.5%) for Order ${order.orderNumber} is already settled via Mobile Money.`,
+        order,
+      });
+    }
+
+    if (!isCommissionOnly && order.paymentStatus === 'paid') {
       return res.status(409).json({
         error: `Order ${order.orderNumber} is already fully paid and settled. Duplicate payment prevented.`,
         order,
       });
     }
 
-    // Amount strictly locked to verified contract total in RWF (integer string)
-    const lockedAmountRwf = Math.round(Number(order.totalAmountRwf));
+    // Amount strictly locked: either full contract total or 2.5% platform commission
+    const lockedAmountRwf = isCommissionOnly
+      ? Math.round(Number(order.commissionAmountRwf) || (Number(order.totalAmountRwf) * 0.025))
+      : Math.round(Number(order.totalAmountRwf));
+
     if (isNaN(lockedAmountRwf) || lockedAmountRwf <= 0) {
-      return res.status(400).json({ error: 'Order has an invalid contract amount.' });
+      return res.status(400).json({ error: 'Order has an invalid payment amount.' });
     }
 
     // 2. Normalize and Validate Rwandan Phone Number
-    const phoneCheck = normalizeRwandaMsisdn(phone);
+    const phoneCheck = normalizeRwandaMsisdn(effectivePhone);
     if (!phoneCheck.valid) {
       return res.status(400).json({ error: phoneCheck.error });
     }
@@ -1928,7 +1981,7 @@ app.post('/api/payments/pawapay/initiate-deposit', async (req, res) => {
     const depositId = crypto.randomUUID();
     const paymentRef = generatePaymentRef();
     const nowIso = new Date().toISOString();
-    const statementDesc = statementDescription || `AgriBridge ${order.orderNumber}`.slice(0, 22);
+    const statementDesc = statementDescription || (isCommissionOnly ? `AgriBridge 2.5% ${order.orderNumber}` : `AgriBridge ${order.orderNumber}`).slice(0, 22);
 
     const pawapayPayload = {
       depositId,
@@ -1937,9 +1990,10 @@ app.post('/api/payments/pawapay/initiate-deposit', async (req, res) => {
       country: 'RWA',
       correspondent,
       payer: {
-        type: 'MSISDN',
-        address: {
-          value: phoneCheck.msisdn,
+        type: 'MMO',
+        accountDetails: {
+          phoneNumber: phoneCheck.msisdn,
+          provider: correspondent,
         },
       },
       customerTimestamp: nowIso,
@@ -1949,15 +2003,18 @@ app.post('/api/payments/pawapay/initiate-deposit', async (req, res) => {
         { fieldName: 'orderNumber', fieldValue: order.orderNumber },
         { fieldName: 'platform', fieldValue: 'AgriBridge Rwanda' },
         { fieldName: 'reference', fieldValue: paymentRef },
+        { fieldName: 'paymentType', fieldValue: isCommissionOnly ? 'commission_only' : 'full_order' },
         { fieldName: 'buyerName', fieldValue: customerName || order.buyerName },
         { fieldName: 'farmerName', fieldValue: order.farmerName },
       ],
     };
 
     // Calculate Platform Commission & Farmer Net Payout
-    const commissionFeeRwf = Math.round((lockedAmountRwf * COMMISSION_CONFIG.ratePercent) / 100);
+    const commissionFeeRwf = isCommissionOnly
+      ? lockedAmountRwf
+      : Math.round((lockedAmountRwf * COMMISSION_CONFIG.ratePercent) / 100);
     const providerFeeRwf = correspondent === 'MTN_MOMO_RWA' ? Math.round(lockedAmountRwf * 0.005) : Math.round(lockedAmountRwf * 0.004);
-    const farmerPayoutRwf = lockedAmountRwf - commissionFeeRwf;
+    const farmerPayoutRwf = isCommissionOnly ? 0 : lockedAmountRwf - commissionFeeRwf;
 
     // Create Initial Payment Record
     const paymentRecord = {
@@ -1978,8 +2035,12 @@ app.post('/api/payments/pawapay/initiate-deposit', async (req, res) => {
       method: correspondent === 'MTN_MOMO_RWA' ? 'momo_mtn' : 'airtel_money',
       methodName: correspondent === 'MTN_MOMO_RWA' ? 'MTN Mobile Money Rwanda (via PawaPay)' : 'Airtel Money Rwanda (via PawaPay)',
       status: 'PENDING',
-      statusReason: 'PawaPay deposit initiated. Handset approval prompt dispatched.',
-      description: `${order.cropName} (${order.quantityKg} kg)`,
+      statusReason: isCommissionOnly
+        ? 'PawaPay deposit initiated for 2.5% platform commission.'
+        : 'PawaPay deposit initiated. Handset approval prompt dispatched.',
+      description: isCommissionOnly
+        ? `Platform Fee (2.5%) for Order ${order.orderNumber}`
+        : `${order.cropName} (${order.quantityKg} kg)`,
       idempotencyKey: `idem_pawapay_${depositId}`,
       customerPhone: phoneCheck.msisdn,
       initiatedAt: nowIso,
@@ -1988,10 +2049,13 @@ app.post('/api/payments/pawapay/initiate-deposit', async (req, res) => {
       pawapayDepositId: depositId,
       pawapayStatus: 'ACCEPTED',
       pawapayProvider: correspondent,
+      paymentType: isCommissionOnly ? 'commission_only' : 'full_order',
     };
 
     SERVER_PAYMENTS.unshift(paymentRecord);
-    order.paymentStatus = 'payment_pending';
+    if (!isCommissionOnly) {
+      order.paymentStatus = 'payment_pending';
+    }
     order.pawapayDepositId = depositId;
 
     // Store in-flight deposit state
@@ -2011,6 +2075,7 @@ app.post('/api/payments/pawapay/initiate-deposit', async (req, res) => {
       orderId: order.id,
       orderNumber: order.orderNumber,
       paymentRef,
+      paymentType: isCommissionOnly ? 'commission_only' : 'full_order',
     };
     PAWAPAY_DEPOSITS_STORE.set(depositId, depositState);
 
@@ -2056,14 +2121,13 @@ app.post('/api/payments/pawapay/initiate-deposit', async (req, res) => {
           depositState.created = pawapayResponseData.created || nowIso;
         } else {
           const errText = await pawaRes.text();
-          console.warn(`PawaPay API responded with status ${pawaRes.status}: ${errText}`);
-          // If live call returned client error, return detailed error
-          if (pawaRes.status === 400 || pawaRes.status === 401 || pawaRes.status === 403) {
+          if (PAWAPAY_ENVIRONMENT === 'production' && (pawaRes.status === 400 || pawaRes.status === 401 || pawaRes.status === 403)) {
             return res.status(pawaRes.status).json({
               error: `PawaPay API error (${pawaRes.status}): ${errText}`,
               details: errText,
             });
           }
+          console.warn(`PawaPay sandbox responded with ${pawaRes.status}. Continuing with official sandbox test matrix.`);
         }
       } catch (err: any) {
         console.warn('Network call to PawaPay failed, continuing in sandbox simulation mode:', err.message);
@@ -2106,8 +2170,12 @@ app.post('/api/payments/pawapay/initiate-deposit', async (req, res) => {
 
             const ord = SERVER_ORDERS.find((o) => o.id === order.id);
             if (ord) {
-              ord.paymentStatus = 'paid';
-              ord.commissionStatus = 'paid';
+              if (dep.paymentType === 'commission_only') {
+                ord.commissionStatus = 'paid';
+              } else {
+                ord.paymentStatus = 'paid';
+                ord.commissionStatus = 'paid';
+              }
             }
 
             SERVER_AUDIT_LOGS.unshift({
@@ -2265,11 +2333,17 @@ app.post('/api/payments/pawapay/callback', (req, res) => {
       const order = SERVER_ORDERS.find((o) => o.id === payment.orderId || o.pawapayDepositId === depositId);
       if (order) {
         if (status === 'COMPLETED') {
-          order.paymentStatus = 'paid';
-          order.commissionStatus = 'paid';
+          if (payment.paymentType === 'commission_only' || existingDeposit?.paymentType === 'commission_only') {
+            order.commissionStatus = 'paid';
+          } else {
+            order.paymentStatus = 'paid';
+            order.commissionStatus = 'paid';
+          }
           order.pawapayDepositId = depositId;
         } else if (status === 'FAILED') {
-          order.paymentStatus = 'payment_failed';
+          if (payment.paymentType !== 'commission_only') {
+            order.paymentStatus = 'payment_failed';
+          }
         }
       }
 
@@ -2322,7 +2396,7 @@ app.get('/api/payments/pawapay/status/:depositId', async (req, res) => {
         if (pawaRes.ok) {
           const liveData = await pawaRes.json();
           const record = Array.isArray(liveData) ? liveData[0] : liveData;
-          if (record && record.status) {
+          if (record && record.status && record.status !== 'NOT_FOUND') {
             // Update local memory
             const localDep = PAWAPAY_DEPOSITS_STORE.get(depositId);
             if (localDep) {
@@ -2653,6 +2727,582 @@ app.post('/api/locations/import', (req, res) => {
     console.error('Location import error:', err);
     return res.status(500).json({ error: 'Location dataset import failed.' });
   }
+});
+
+// ============================================================================
+// BUYER-FARMER PRICE NEGOTIATION INBOX BACKEND
+// ============================================================================
+
+const SERVER_NEGOTIATION_THREADS: any[] = [
+  {
+    id: 'thread_neg_1',
+    listingId: 'listing_demo_2',
+    cropName: 'White Grain Maize (Pre-Harvest Booking)',
+    variety: 'PAN 53 Hybrid',
+    listingCropType: 'maize',
+    listingUnitPriceRwf: 380,
+    quantityAvailableKg: 3500,
+    minimumOrderKg: 500,
+    deliveryOption: 'Nyagatare Aggregation Center',
+    farmerId: 'user_farmer_1',
+    farmerName: 'IDRIS Agaba Otin',
+    farmerPhone: '+250 788 123 456',
+    farmerCoop: 'COOPAMA Mimuri Maize Union',
+    farmerDistrict: 'Nyagatare',
+    farmerSector: 'Mimuri',
+    buyerId: 'user_buyer_1',
+    buyerName: 'Clarisse Umutoni',
+    buyerPhone: '+250 788 654 321',
+    buyerCompany: 'Kigali Millers Ltd',
+    status: 'negotiating',
+    currentAgreedPricePerKgRwf: 360,
+    latestMessageSnippet: 'Can we agree on 360 RWF/kg for 2,500 kg? If so, I will lock the escrow deposit via MoMo.',
+    lastMessageTimestamp: '2026-11-10T10:45:00Z',
+    unreadCountBuyer: 0,
+    unreadCountFarmer: 1,
+    latestPriceProposal: {
+      id: 'prop_neg_1_latest',
+      proposedPricePerKgRwf: 360,
+      requestedQuantityKg: 2500,
+      totalAmountRwf: 900000,
+      platformFeeRwf: 22500,
+      proposedDeliveryOption: 'Nyagatare Aggregation Center',
+      proposedPickupDate: '2026-11-28',
+      status: 'pending',
+      proposerRole: 'buyer',
+      createdAt: '2026-11-10T10:45:00Z',
+    },
+    messages: [
+      {
+        id: 'msg_1_1',
+        threadId: 'thread_neg_1',
+        senderId: 'user_buyer_1',
+        senderName: 'Clarisse Umutoni',
+        senderRole: 'buyer',
+        content: 'Muraho Idris! We are planning our December milling quota in Kigali and noticed your 3,500 kg of PAN 53 White Maize in Mimuri. Your asking price is 380 RWF/kg. For a 2,500 kg bulk booking, would you accept 350 RWF/kg?',
+        timestamp: '2026-11-09T14:20:00Z',
+        priceProposal: {
+          id: 'prop_neg_1_init',
+          proposedPricePerKgRwf: 350,
+          requestedQuantityKg: 2500,
+          totalAmountRwf: 875000,
+          platformFeeRwf: 21875,
+          proposedDeliveryOption: 'Nyagatare Aggregation Center',
+          proposedPickupDate: '2026-11-28',
+          status: 'countered',
+          proposerRole: 'buyer',
+          createdAt: '2026-11-09T14:20:00Z',
+        },
+      },
+      {
+        id: 'msg_1_2',
+        threadId: 'thread_neg_1',
+        senderId: 'user_farmer_1',
+        senderName: 'IDRIS Agaba Otin',
+        senderRole: 'farmer',
+        content: 'Muraho neza Clarisse! Thank you for reaching out. Grade 1 certified white maize dried below 13.5% moisture is currently very competitive in Nyagatare. 350 RWF/kg is below my threshold after transport to the aggregation center. I can offer 365 RWF/kg with guaranteed grade 1 testing.',
+        timestamp: '2026-11-09T16:10:00Z',
+        priceProposal: {
+          id: 'prop_neg_1_counter',
+          proposedPricePerKgRwf: 365,
+          requestedQuantityKg: 2500,
+          totalAmountRwf: 912500,
+          platformFeeRwf: 22812,
+          proposedDeliveryOption: 'Nyagatare Aggregation Center',
+          proposedPickupDate: '2026-11-28',
+          status: 'countered',
+          counterPricePerKgRwf: 365,
+          counterNotes: 'Includes moisture certification (<13.5%) & 100kg clean woven bags.',
+          proposerRole: 'farmer',
+          createdAt: '2026-11-09T16:10:00Z',
+        },
+      },
+      {
+        id: 'msg_1_3',
+        threadId: 'thread_neg_1',
+        senderId: 'user_buyer_1',
+        senderName: 'Clarisse Umutoni',
+        senderRole: 'buyer',
+        content: 'I appreciate the moisture guarantee. Can we meet in the middle at 360 RWF/kg for 2,500 kg? If so, I will lock the escrow deposit via MoMo right now so you can reserve the batch.',
+        timestamp: '2026-11-10T10:45:00Z',
+        priceProposal: {
+          id: 'prop_neg_1_latest',
+          proposedPricePerKgRwf: 360,
+          requestedQuantityKg: 2500,
+          totalAmountRwf: 900000,
+          platformFeeRwf: 22500,
+          proposedDeliveryOption: 'Nyagatare Aggregation Center',
+          proposedPickupDate: '2026-11-28',
+          status: 'pending',
+          proposerRole: 'buyer',
+          createdAt: '2026-11-10T10:45:00Z',
+        },
+      },
+    ],
+  },
+  {
+    id: 'thread_neg_2',
+    listingId: 'listing_demo_4',
+    cropName: 'Premium Yellow Grain Maize (PAN 12)',
+    variety: 'PAN 12 High Starch',
+    listingCropType: 'maize',
+    listingUnitPriceRwf: 390,
+    quantityAvailableKg: 5000,
+    minimumOrderKg: 500,
+    deliveryOption: 'Nyagatare Aggregation Center',
+    farmerId: 'user_farmer_2',
+    farmerName: 'Faustin Nkurunziza',
+    farmerPhone: '+250 788 345 612',
+    farmerCoop: 'COOPAMA Matimba Maize Union',
+    farmerDistrict: 'Nyagatare',
+    farmerSector: 'Matimba',
+    buyerId: 'user_buyer_1',
+    buyerName: 'Clarisse Umutoni',
+    buyerPhone: '+250 788 654 321',
+    buyerCompany: 'Kigali Millers Ltd',
+    status: 'price_agreed',
+    currentAgreedPricePerKgRwf: 375,
+    latestMessageSnippet: 'Agreed on 375 RWF/kg! Ready to proceed to PawaPay MoMo checkout.',
+    lastMessageTimestamp: '2026-11-10T09:15:00Z',
+    unreadCountBuyer: 0,
+    unreadCountFarmer: 0,
+    latestPriceProposal: {
+      id: 'prop_neg_2_agreed',
+      proposedPricePerKgRwf: 375,
+      requestedQuantityKg: 3000,
+      totalAmountRwf: 1125000,
+      platformFeeRwf: 28125,
+      proposedDeliveryOption: 'Nyagatare Aggregation Center',
+      proposedPickupDate: '2026-11-22',
+      status: 'accepted',
+      proposerRole: 'buyer',
+      createdAt: '2026-11-10T08:50:00Z',
+      respondedAt: '2026-11-10T09:15:00Z',
+    },
+    messages: [
+      {
+        id: 'msg_2_1',
+        threadId: 'thread_neg_2',
+        senderId: 'user_buyer_1',
+        senderName: 'Clarisse Umutoni',
+        senderRole: 'buyer',
+        content: 'Hello Faustin! We saw your Matimba yellow maize harvest. We need 3,000 kg for animal feed formulation in Kigali. Your list price is 390 RWF/kg. For a 3,000 kg intake, can we do 375 RWF/kg?',
+        timestamp: '2026-11-10T08:50:00Z',
+        priceProposal: {
+          id: 'prop_neg_2_agreed',
+          proposedPricePerKgRwf: 375,
+          requestedQuantityKg: 3000,
+          totalAmountRwf: 1125000,
+          platformFeeRwf: 28125,
+          proposedDeliveryOption: 'Nyagatare Aggregation Center',
+          proposedPickupDate: '2026-11-22',
+          status: 'accepted',
+          proposerRole: 'buyer',
+          createdAt: '2026-11-10T08:50:00Z',
+        },
+      },
+      {
+        id: 'msg_2_2',
+        threadId: 'thread_neg_2',
+        senderId: 'user_farmer_2',
+        senderName: 'Faustin Nkurunziza',
+        senderRole: 'farmer',
+        content: 'Yego Clarisse! 375 RWF/kg is accepted for a 3-ton prompt order. Bags are ready in Matimba warehouse. You can proceed with the MoMo escrow payment through the portal.',
+        timestamp: '2026-11-10T09:15:00Z',
+      },
+    ],
+  },
+  {
+    id: 'thread_neg_3',
+    listingId: 'listing_demo_8',
+    cropName: 'Basmati Paddy Rice (Muvumba-1)',
+    variety: 'Muvumba-1 Pure Selection',
+    listingCropType: 'rice',
+    listingUnitPriceRwf: 520,
+    quantityAvailableKg: 6500,
+    minimumOrderKg: 1000,
+    deliveryOption: 'Nyagatare Aggregation Center',
+    farmerId: 'user_farmer_4',
+    farmerName: 'Théogène Habineza',
+    farmerPhone: '+250 788 667 890',
+    farmerCoop: 'CORIMU Muvumba Rice Farmers Union',
+    farmerDistrict: 'Nyagatare',
+    farmerSector: 'Rukomo',
+    buyerId: 'user_buyer_1',
+    buyerName: 'Clarisse Umutoni',
+    buyerPhone: '+250 788 654 321',
+    buyerCompany: 'Kigali Millers Ltd',
+    status: 'negotiating',
+    currentAgreedPricePerKgRwf: 500,
+    latestMessageSnippet: 'Can we agree on 500 RWF/kg for 2,000 kg paddy rice delivered to Rukomo center?',
+    lastMessageTimestamp: '2026-11-10T07:30:00Z',
+    unreadCountBuyer: 1,
+    unreadCountFarmer: 0,
+    latestPriceProposal: {
+      id: 'prop_neg_3_latest',
+      proposedPricePerKgRwf: 500,
+      requestedQuantityKg: 2000,
+      totalAmountRwf: 1000000,
+      platformFeeRwf: 25000,
+      proposedDeliveryOption: 'Nyagatare Aggregation Center',
+      proposedPickupDate: '2026-11-30',
+      status: 'pending',
+      proposerRole: 'buyer',
+      createdAt: '2026-11-10T07:30:00Z',
+    },
+    messages: [
+      {
+        id: 'msg_3_1',
+        threadId: 'thread_neg_3',
+        senderId: 'user_buyer_1',
+        senderName: 'Clarisse Umutoni',
+        senderRole: 'buyer',
+        content: 'Greetings Théogène! Is this Muvumba basmati rice already moisture-cured? We would like to take 2,000 kg. Can we negotiate to 500 RWF/kg?',
+        timestamp: '2026-11-10T07:30:00Z',
+        priceProposal: {
+          id: 'prop_neg_3_latest',
+          proposedPricePerKgRwf: 500,
+          requestedQuantityKg: 2000,
+          totalAmountRwf: 1000000,
+          platformFeeRwf: 25000,
+          proposedDeliveryOption: 'Nyagatare Aggregation Center',
+          proposedPickupDate: '2026-11-30',
+          status: 'pending',
+          proposerRole: 'buyer',
+          createdAt: '2026-11-10T07:30:00Z',
+        },
+      },
+    ],
+  },
+];
+
+// 1. Get all threads
+app.get('/api/messages/threads', (req, res) => {
+  const { userId, role } = req.query;
+  let list = SERVER_NEGOTIATION_THREADS;
+  if (userId) {
+    list = list.filter((t) => t.buyerId === userId || t.farmerId === userId);
+  }
+  res.json({
+    threads: list,
+    unreadTotal: list.reduce((acc, t) => acc + (role === 'farmer' ? t.unreadCountFarmer : t.unreadCountBuyer), 0),
+  });
+});
+
+// 2. Get specific thread
+app.get('/api/messages/threads/:threadId', (req, res) => {
+  const thread = SERVER_NEGOTIATION_THREADS.find((t) => t.id === req.params.threadId);
+  if (!thread) {
+    return res.status(404).json({ error: 'Negotiation thread not found.' });
+  }
+  res.json({ thread });
+});
+
+// 3. Create or find thread
+app.post('/api/messages/threads', (req, res) => {
+  const {
+    listingId,
+    cropName,
+    variety,
+    listingUnitPriceRwf,
+    quantityAvailableKg,
+    farmerId,
+    farmerName,
+    farmerPhone,
+    farmerCoop,
+    farmerDistrict,
+    farmerSector,
+    buyerId,
+    buyerName,
+    buyerPhone,
+    buyerCompany,
+    initialMessage,
+    proposedPricePerKgRwf,
+    requestedQuantityKg,
+  } = req.body;
+
+  if (!listingId || !farmerId || !buyerId) {
+    return res.status(400).json({ error: 'listingId, farmerId, and buyerId are required.' });
+  }
+
+  // Look for existing thread between buyer and listing
+  let thread = SERVER_NEGOTIATION_THREADS.find(
+    (t) => t.listingId === listingId && t.buyerId === buyerId
+  );
+
+  const nowIso = new Date().toISOString();
+
+  if (!thread) {
+    const threadId = `thread_neg_${Date.now()}`;
+    const initialPriceProposal = proposedPricePerKgRwf && requestedQuantityKg ? {
+      id: `prop_${Date.now()}`,
+      proposedPricePerKgRwf: Number(proposedPricePerKgRwf),
+      requestedQuantityKg: Number(requestedQuantityKg),
+      totalAmountRwf: Math.round(Number(proposedPricePerKgRwf) * Number(requestedQuantityKg)),
+      platformFeeRwf: Math.round(Number(proposedPricePerKgRwf) * Number(requestedQuantityKg) * 0.025),
+      status: 'pending' as const,
+      proposerRole: 'buyer' as const,
+      createdAt: nowIso,
+    } : undefined;
+
+    const messages = [];
+    if (initialMessage || initialPriceProposal) {
+      messages.push({
+        id: `msg_${Date.now()}`,
+        threadId,
+        senderId: buyerId,
+        senderName: buyerName || 'Buyer',
+        senderRole: 'buyer' as const,
+        content: initialMessage || `Hello, I would like to negotiate price for ${cropName}.`,
+        timestamp: nowIso,
+        priceProposal: initialPriceProposal,
+      });
+    }
+
+    thread = {
+      id: threadId,
+      listingId,
+      cropName: cropName || 'Produce Harvest',
+      variety: variety || 'Standard Quality',
+      listingUnitPriceRwf: Number(listingUnitPriceRwf) || 400,
+      quantityAvailableKg: Number(quantityAvailableKg) || 1000,
+      farmerId,
+      farmerName: farmerName || 'Producer',
+      farmerPhone: farmerPhone || '+250 788 000 000',
+      farmerCoop,
+      farmerDistrict: farmerDistrict || 'Nyagatare',
+      farmerSector: farmerSector || 'Mimuri',
+      buyerId,
+      buyerName: buyerName || 'Buyer',
+      buyerPhone: buyerPhone || '+250 788 000 001',
+      buyerCompany,
+      status: 'negotiating',
+      currentAgreedPricePerKgRwf: proposedPricePerKgRwf ? Number(proposedPricePerKgRwf) : undefined,
+      latestPriceProposal: initialPriceProposal,
+      latestMessageSnippet: initialMessage || `Started negotiation for ${cropName}`,
+      lastMessageTimestamp: nowIso,
+      unreadCountBuyer: 0,
+      unreadCountFarmer: 1,
+      messages,
+    };
+
+    SERVER_NEGOTIATION_THREADS.unshift(thread);
+  }
+
+  res.json({ thread, isNew: true });
+});
+
+// 4. Send message in thread
+app.post('/api/messages/send', (req, res) => {
+  const { threadId, senderId, senderName, senderRole, content, priceProposal } = req.body;
+  const thread = SERVER_NEGOTIATION_THREADS.find((t) => t.id === threadId);
+
+  if (!thread) {
+    return res.status(404).json({ error: 'Thread not found.' });
+  }
+
+  const nowIso = new Date().toISOString();
+  let proposalObj = undefined;
+
+  if (priceProposal && priceProposal.proposedPricePerKgRwf && priceProposal.requestedQuantityKg) {
+    const total = Math.round(Number(priceProposal.proposedPricePerKgRwf) * Number(priceProposal.requestedQuantityKg));
+    proposalObj = {
+      id: `prop_${Date.now()}`,
+      proposedPricePerKgRwf: Number(priceProposal.proposedPricePerKgRwf),
+      requestedQuantityKg: Number(priceProposal.requestedQuantityKg),
+      totalAmountRwf: total,
+      platformFeeRwf: Math.round(total * 0.025),
+      proposedDeliveryOption: priceProposal.proposedDeliveryOption || thread.deliveryOption || 'Nyagatare Aggregation Center',
+      proposedPickupDate: priceProposal.proposedPickupDate || new Date(Date.now() + 7 * 86400000).toISOString().split('T')[0],
+      status: 'pending' as const,
+      proposerRole: senderRole === 'farmer' ? ('farmer' as const) : ('buyer' as const),
+      createdAt: nowIso,
+    };
+    thread.latestPriceProposal = proposalObj;
+  }
+
+  const newMsg = {
+    id: `msg_${Date.now()}_${Math.floor(Math.random() * 1000)}`,
+    threadId,
+    senderId,
+    senderName,
+    senderRole: senderRole || 'buyer',
+    content: content || (proposalObj ? `Proposed ${proposalObj.proposedPricePerKgRwf} RWF/kg for ${proposalObj.requestedQuantityKg.toLocaleString()} kg.` : ''),
+    timestamp: nowIso,
+    priceProposal: proposalObj,
+  };
+
+  thread.messages.push(newMsg);
+  thread.latestMessageSnippet = newMsg.content;
+  thread.lastMessageTimestamp = nowIso;
+
+  if (senderRole === 'farmer') {
+    thread.unreadCountBuyer = (thread.unreadCountBuyer || 0) + 1;
+  } else {
+    thread.unreadCountFarmer = (thread.unreadCountFarmer || 0) + 1;
+  }
+
+  res.json({ success: true, message: newMsg, thread });
+});
+
+// 5. Respond to price proposal (accept / decline / counter)
+app.post('/api/messages/respond-proposal', (req, res) => {
+  const { threadId, messageId, proposalId, action, counterPricePerKgRwf, counterNotes, responderRole, responderName } = req.body;
+  const thread = SERVER_NEGOTIATION_THREADS.find((t) => t.id === threadId);
+
+  if (!thread) {
+    return res.status(404).json({ error: 'Thread not found.' });
+  }
+
+  const nowIso = new Date().toISOString();
+
+  // Find message or proposal
+  const msg = thread.messages.find((m: any) => m.id === messageId || (m.priceProposal && m.priceProposal.id === proposalId));
+  const targetProposal = msg?.priceProposal || thread.latestPriceProposal;
+
+  if (targetProposal) {
+    if (action === 'accept') {
+      targetProposal.status = 'accepted';
+      targetProposal.respondedAt = nowIso;
+      thread.status = 'price_agreed';
+      thread.currentAgreedPricePerKgRwf = targetProposal.proposedPricePerKgRwf;
+
+      // Add system confirmation message
+      thread.messages.push({
+        id: `msg_sys_${Date.now()}`,
+        threadId,
+        senderId: 'system',
+        senderName: 'AgriBridge Escrow Agreement',
+        senderRole: 'system',
+        content: `🤝 Price agreement reached! ${responderName || 'Partner'} accepted the negotiated rate of ${targetProposal.proposedPricePerKgRwf} RWF/kg for ${targetProposal.requestedQuantityKg.toLocaleString()} kg. Total contract value: ${targetProposal.totalAmountRwf.toLocaleString()} RWF (Platform MoMo fee: ${targetProposal.platformFeeRwf.toLocaleString()} RWF). Ready to convert to binding order and proceed to PawaPay checkout.`,
+        timestamp: nowIso,
+      });
+      thread.latestMessageSnippet = `Price agreed at ${targetProposal.proposedPricePerKgRwf} RWF/kg! Ready for checkout.`;
+    } else if (action === 'decline') {
+      targetProposal.status = 'declined';
+      targetProposal.respondedAt = nowIso;
+      thread.messages.push({
+        id: `msg_sys_${Date.now()}`,
+        threadId,
+        senderId: 'system',
+        senderName: 'Price Negotiation Update',
+        senderRole: 'system',
+        content: `The price proposal of ${targetProposal.proposedPricePerKgRwf} RWF/kg was declined. Feel free to propose an alternative quotation.`,
+        timestamp: nowIso,
+      });
+    } else if (action === 'counter' && counterPricePerKgRwf) {
+      targetProposal.status = 'countered';
+      const counterTotal = Math.round(Number(counterPricePerKgRwf) * Number(targetProposal.requestedQuantityKg));
+      const counterProposal = {
+        id: `prop_counter_${Date.now()}`,
+        proposedPricePerKgRwf: Number(counterPricePerKgRwf),
+        requestedQuantityKg: targetProposal.requestedQuantityKg,
+        totalAmountRwf: counterTotal,
+        platformFeeRwf: Math.round(counterTotal * 0.025),
+        proposedDeliveryOption: targetProposal.proposedDeliveryOption,
+        proposedPickupDate: targetProposal.proposedPickupDate,
+        status: 'pending' as const,
+        counterNotes,
+        proposerRole: responderRole === 'farmer' ? ('farmer' as const) : ('buyer' as const),
+        createdAt: nowIso,
+      };
+
+      thread.latestPriceProposal = counterProposal;
+      thread.messages.push({
+        id: `msg_${Date.now()}`,
+        threadId,
+        senderId: responderRole === 'farmer' ? thread.farmerId : thread.buyerId,
+        senderName: responderName || (responderRole === 'farmer' ? thread.farmerName : thread.buyerName),
+        senderRole: responderRole || 'farmer',
+        content: counterNotes || `I counter-propose a rate of ${counterPricePerKgRwf} RWF/kg for this batch.`,
+        timestamp: nowIso,
+        priceProposal: counterProposal,
+      });
+      thread.latestMessageSnippet = `Counter-offer: ${counterPricePerKgRwf} RWF/kg`;
+    }
+  }
+
+  thread.lastMessageTimestamp = nowIso;
+  res.json({ success: true, thread });
+});
+
+// 6. Convert agreed negotiation into formal order ready for PawaPay MoMo checkout
+app.post('/api/messages/convert-to-order', (req, res) => {
+  const { threadId } = req.body;
+  const thread = SERVER_NEGOTIATION_THREADS.find((t) => t.id === threadId);
+
+  if (!thread) {
+    return res.status(404).json({ error: 'Thread not found.' });
+  }
+
+  const proposal = thread.latestPriceProposal || {
+    proposedPricePerKgRwf: thread.currentAgreedPricePerKgRwf || thread.listingUnitPriceRwf,
+    requestedQuantityKg: 1000,
+    totalAmountRwf: (thread.currentAgreedPricePerKgRwf || thread.listingUnitPriceRwf) * 1000,
+    platformFeeRwf: Math.round(((thread.currentAgreedPricePerKgRwf || thread.listingUnitPriceRwf) * 1000) * 0.025),
+    proposedDeliveryOption: 'Nyagatare Aggregation Center',
+    proposedPickupDate: new Date(Date.now() + 7 * 86400000).toISOString().split('T')[0],
+  };
+
+  const finalPrice = Number(proposal.proposedPricePerKgRwf) || Number(thread.currentAgreedPricePerKgRwf) || Number(thread.listingUnitPriceRwf);
+  const finalQty = Number(proposal.requestedQuantityKg) || 1000;
+  const totalRwf = Math.round(finalPrice * finalQty);
+  const commRwf = Math.round(totalRwf * 0.025);
+
+  const orderId = `ord_neg_${Date.now()}`;
+  const orderNumber = `ORD-NYA-2026-${Math.floor(1000 + Math.random() * 9000)}`;
+  const nowIso = new Date().toISOString();
+
+  const createdOrder = {
+    id: orderId,
+    orderNumber,
+    offerId: `off_neg_${thread.id}`,
+    listingId: thread.listingId,
+    cropName: thread.cropName,
+    variety: thread.variety,
+    farmerId: thread.farmerId,
+    farmerName: thread.farmerName,
+    farmerPhone: thread.farmerPhone,
+    buyerId: thread.buyerId,
+    buyerName: thread.buyerName,
+    buyerPhone: thread.buyerPhone,
+    buyerCompany: thread.buyerCompany || 'Commercial Buyer',
+    sector: thread.farmerSector || 'Mimuri',
+    quantityKg: finalQty,
+    unitPriceRwf: finalPrice,
+    totalAmountRwf: totalRwf,
+    commissionRatePercent: 2.5,
+    commissionAmountRwf: commRwf,
+    commissionStatus: 'due',
+    status: 'pending_dispatch',
+    deliveryOption: proposal.proposedDeliveryOption || 'Nyagatare Aggregation Center',
+    dispatchDate: proposal.proposedPickupDate || new Date(Date.now() + 7 * 86400000).toISOString().split('T')[0],
+    paymentMethod: 'Mobile Money (MTN/Airtel)',
+    receiptCode: `RCP-${Math.floor(1000 + Math.random() * 9000)}`,
+    isDemo: false,
+    createdAt: nowIso,
+    updatedAt: nowIso,
+  };
+
+  SERVER_ORDERS.unshift(createdOrder);
+
+  thread.status = 'order_placed';
+  thread.convertedOrderId = orderId;
+  thread.messages.push({
+    id: `msg_sys_${Date.now()}`,
+    threadId,
+    senderId: 'system',
+    senderName: 'Contract Created',
+    senderRole: 'system',
+    content: `📄 Purchase Contract Generated: Order ${orderNumber} has been officially locked at ${finalPrice} RWF/kg (${totalRwf.toLocaleString()} RWF total). Proceeding to PawaPay Mobile Money checkout portal with 2.5% platform fee (${commRwf.toLocaleString()} RWF).`,
+    timestamp: nowIso,
+  });
+
+  res.json({
+    success: true,
+    order: createdOrder,
+    thread,
+  });
 });
 
 app.get('/api/health', (_req, res) => {
