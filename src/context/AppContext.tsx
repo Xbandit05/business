@@ -43,7 +43,13 @@ import {
   DEMO_BENCHMARKS,
   DEMO_NEGOTIATION_THREADS,
 } from '../data/nyagatare.ts';
-import { auth, signInWithGoogle, logOutFromFirebase } from '../lib/firebase.ts';
+import {
+  auth,
+  signInWithGoogle,
+  logOutFromFirebase,
+  GoogleAuthErrorInfo,
+  parseFirebaseAuthError,
+} from '../lib/firebase.ts';
 import { onAuthStateChanged, User as FirebaseUser } from 'firebase/auth';
 import {
   saveUserProfileToFirestore,
@@ -70,7 +76,7 @@ interface AppContextType {
   setIsAuthenticated: (auth: boolean) => void;
   firebaseUser: FirebaseUser | null;
   isGoogleAuthenticated: boolean;
-  signInWithGoogleAccount: () => Promise<{ success: boolean; error?: string }>;
+  signInWithGoogleAccount: () => Promise<{ success: boolean; error?: string; errorInfo?: GoogleAuthErrorInfo }>;
   signOutGoogleAccount: () => Promise<void>;
   activePortfolio: UserPortfolio | null;
   userPortfolios: UserPortfolio[];
@@ -1085,15 +1091,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     showToast('info', `Exploring as ${match.role.toUpperCase()}`, `Workspace loaded: ${match.fullName}`);
   };
 
-  const signInWithGoogleAccount = async (): Promise<{ success: boolean; error?: string }> => {
+  const signInWithGoogleAccount = async (): Promise<{ success: boolean; error?: string; errorInfo?: GoogleAuthErrorInfo }> => {
     try {
       await signInWithGoogle();
       setIsAuthModalOpen(false);
       return { success: true };
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
-      showToast('warning', 'Google Sign-In Cancelled', msg);
-      return { success: false, error: msg };
+    } catch (err: unknown) {
+      const errorInfo: GoogleAuthErrorInfo =
+        err && typeof err === 'object' && 'resolution' in err
+          ? (err as GoogleAuthErrorInfo)
+          : parseFirebaseAuthError(err);
+
+      showToast('warning', 'Google Sign-In Notice', errorInfo.resolution);
+      return { success: false, error: errorInfo.resolution, errorInfo };
     }
   };
 

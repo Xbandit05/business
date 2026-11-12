@@ -21,7 +21,11 @@ import {
   ShieldCheck,
   RefreshCw,
   HelpCircle,
+  Copy,
+  ExternalLink,
+  Check,
 } from 'lucide-react';
+import { GoogleAuthErrorInfo } from '../../lib/firebase.ts';
 
 interface AccessPortfolioModalProps {
   isOpen: boolean;
@@ -43,6 +47,8 @@ export const AccessPortfolioModal: React.FC<AccessPortfolioModalProps> = ({
 
   const [identifier, setIdentifier] = useState('');
   const [passwordOrPin, setPasswordOrPin] = useState('');
+  const [googleErrorInfo, setGoogleErrorInfo] = useState<GoogleAuthErrorInfo | null>(null);
+  const [copiedDomain, setCopiedDomain] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -61,10 +67,14 @@ export const AccessPortfolioModal: React.FC<AccessPortfolioModalProps> = ({
   const handleGoogleSignIn = async () => {
     setIsGoogleLoading(true);
     setErrorMessage(null);
+    setGoogleErrorInfo(null);
     try {
       const res = await signInWithGoogleAccount();
       if (res.success) {
         onClose();
+      } else if (res.errorInfo) {
+        setGoogleErrorInfo(res.errorInfo);
+        setErrorMessage(res.errorInfo.resolution);
       } else if (res.error) {
         setErrorMessage(res.error);
       }
@@ -241,6 +251,53 @@ export const AccessPortfolioModal: React.FC<AccessPortfolioModalProps> = ({
                       : (isRw ? 'Injira ukoresheje Google' : 'Sign in with Google Account')}
                   </span>
                 </button>
+
+                {googleErrorInfo && (
+                  <div className="mt-3 p-3 rounded-xl bg-amber-50 dark:bg-amber-950/60 border border-amber-200 dark:border-amber-800 text-[11px] space-y-2 animate-in fade-in duration-150 text-left">
+                    <div className="font-bold text-amber-900 dark:text-amber-200 flex items-center justify-between">
+                      <span>{isRw ? 'Ibisabwa bya Firebase Google Auth' : 'Firebase Google Auth Notice'}</span>
+                      <span className="font-mono text-[9px] px-1.5 py-0.5 rounded bg-amber-200/60 dark:bg-amber-900 text-amber-950 dark:text-amber-200">
+                        {googleErrorInfo.code}
+                      </span>
+                    </div>
+                    <p className="text-stone-700 dark:text-stone-300">
+                      {googleErrorInfo.resolution}
+                    </p>
+                    {googleErrorInfo.code === 'auth/unauthorized-domain' && (
+                      <div className="space-y-1.5 pt-1 border-t border-amber-200 dark:border-amber-800">
+                        <div className="font-semibold text-stone-700 dark:text-stone-300">
+                          {isRw ? 'Domain igomba kongerwa muri Firebase:' : 'Domain to add to Firebase Authorized Domains:'}
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <code className="flex-1 px-2 py-1 bg-white dark:bg-stone-900 border border-amber-300 dark:border-amber-700 rounded font-mono text-[10px] text-stone-900 dark:text-stone-100 select-all truncate">
+                            {googleErrorInfo.domain}
+                          </code>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              navigator.clipboard?.writeText(googleErrorInfo.domain);
+                              setCopiedDomain(true);
+                              setTimeout(() => setCopiedDomain(false), 2000);
+                            }}
+                            className="px-2 py-1 bg-amber-200/80 dark:bg-amber-900 hover:bg-amber-300 rounded font-semibold text-amber-950 dark:text-amber-100 flex items-center gap-1 cursor-pointer shrink-0"
+                          >
+                            {copiedDomain ? <Check className="w-3 h-3 text-emerald-700" /> : <Copy className="w-3 h-3" />}
+                            <span>{copiedDomain ? 'Copied' : 'Copy'}</span>
+                          </button>
+                        </div>
+                        <a
+                          href={googleErrorInfo.consoleUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 text-[11px] text-emerald-800 dark:text-emerald-400 font-bold hover:underline pt-0.5"
+                        >
+                          <span>{isRw ? 'Fungura Firebase Console Settings' : 'Open Firebase Console Settings'}</span>
+                          <ExternalLink className="w-3 h-3" />
+                        </a>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
 
               {/* Divider */}
