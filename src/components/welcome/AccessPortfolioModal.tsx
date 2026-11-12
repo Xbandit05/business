@@ -266,34 +266,66 @@ export const AccessPortfolioModal: React.FC<AccessPortfolioModalProps> = ({
                     {googleErrorInfo.code === 'auth/unauthorized-domain' && (
                       <div className="space-y-1.5 pt-1 border-t border-amber-200 dark:border-amber-800">
                         <div className="font-semibold text-stone-700 dark:text-stone-300">
-                          {isRw ? 'Domain igomba kongerwa muri Firebase:' : 'Domain to add to Firebase Authorized Domains:'}
+                          {isRw ? 'Ama-domain agomba kongerwa muri Firebase:' : 'Domains to add to Firebase Authorized Domains:'}
                         </div>
+
+                        {/* Vercel domain */}
                         <div className="flex items-center gap-1.5">
-                          <code className="flex-1 px-2 py-1 bg-white dark:bg-stone-900 border border-amber-300 dark:border-amber-700 rounded font-mono text-[10px] text-stone-900 dark:text-stone-100 select-all truncate">
-                            {googleErrorInfo.domain}
+                          <code className="flex-1 px-2 py-1 bg-white dark:bg-stone-900 border border-emerald-300 dark:border-emerald-700 rounded font-mono text-[10px] font-bold text-emerald-800 dark:text-emerald-300 select-all truncate">
+                            agribridge-rw.vercel.app
                           </code>
                           <button
                             type="button"
                             onClick={() => {
-                              navigator.clipboard?.writeText(googleErrorInfo.domain);
+                              navigator.clipboard?.writeText('agribridge-rw.vercel.app');
                               setCopiedDomain(true);
                               setTimeout(() => setCopiedDomain(false), 2000);
                             }}
-                            className="px-2 py-1 bg-amber-200/80 dark:bg-amber-900 hover:bg-amber-300 rounded font-semibold text-amber-950 dark:text-amber-100 flex items-center gap-1 cursor-pointer shrink-0"
+                            className="px-2 py-1 bg-emerald-700 hover:bg-emerald-800 rounded font-semibold text-white flex items-center gap-1 cursor-pointer shrink-0 text-[10px]"
                           >
-                            {copiedDomain ? <Check className="w-3 h-3 text-emerald-700" /> : <Copy className="w-3 h-3" />}
-                            <span>{copiedDomain ? 'Copied' : 'Copy'}</span>
+                            {copiedDomain ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
+                            <span>{copiedDomain ? 'Copied' : 'Copy Vercel Domain'}</span>
                           </button>
                         </div>
-                        <a
-                          href={googleErrorInfo.consoleUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-flex items-center gap-1 text-[11px] text-emerald-800 dark:text-emerald-400 font-bold hover:underline pt-0.5"
-                        >
-                          <span>{isRw ? 'Fungura Firebase Console Settings' : 'Open Firebase Console Settings'}</span>
-                          <ExternalLink className="w-3 h-3" />
-                        </a>
+
+                        {/* Current domain if different */}
+                        {googleErrorInfo.domain !== 'agribridge-rw.vercel.app' && (
+                          <div className="flex items-center gap-1.5">
+                            <code className="flex-1 px-2 py-1 bg-white dark:bg-stone-900 border border-amber-300 dark:border-amber-700 rounded font-mono text-[10px] text-stone-700 dark:text-stone-300 select-all truncate">
+                              {googleErrorInfo.domain}
+                            </code>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                navigator.clipboard?.writeText(googleErrorInfo.domain);
+                              }}
+                              className="px-2 py-1 bg-stone-200 dark:bg-stone-800 hover:bg-stone-300 rounded font-semibold text-stone-700 dark:text-stone-300 shrink-0 text-[10px] cursor-pointer"
+                            >
+                              Copy Preview
+                            </button>
+                          </div>
+                        )}
+                        <div className="flex flex-wrap items-center gap-2 pt-1 text-[11px]">
+                          <a
+                            href={googleErrorInfo.consoleUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1 text-emerald-800 dark:text-emerald-400 font-bold hover:underline"
+                          >
+                            <span>{isRw ? '1. Firebase Console (Authorized Domains)' : '1. Firebase (Authorized Domains)'}</span>
+                            <ExternalLink className="w-3 h-3" />
+                          </a>
+                          <span className="text-stone-300 dark:text-stone-700">&middot;</span>
+                          <a
+                            href={googleErrorInfo.gcpConsoleUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1 text-sky-800 dark:text-sky-400 font-bold hover:underline"
+                          >
+                            <span>{isRw ? '2. Google Cloud (OAuth Client)' : '2. Google Cloud (OAuth Client)'}</span>
+                            <ExternalLink className="w-3 h-3" />
+                          </a>
+                        </div>
                       </div>
                     )}
                   </div>

@@ -31,6 +31,7 @@ export interface GoogleAuthErrorInfo {
   domain: string;
   resolution: string;
   consoleUrl: string;
+  gcpConsoleUrl: string;
 }
 
 export function parseFirebaseAuthError(error: unknown): GoogleAuthErrorInfo {
@@ -39,11 +40,12 @@ export function parseFirebaseAuthError(error: unknown): GoogleAuthErrorInfo {
   const domain = typeof window !== 'undefined' ? window.location.hostname : '';
   const projectId = firebaseConfig.projectId;
   const consoleUrl = `https://console.firebase.google.com/project/${projectId}/authentication/settings`;
+  const gcpConsoleUrl = `https://console.cloud.google.com/apis/credentials?project=${projectId}`;
 
   let resolution = 'Google Sign-In could not load. Please check your network and browser settings.';
 
   if (code === 'auth/unauthorized-domain') {
-    resolution = `The domain "${domain}" is not authorized in Firebase. Add "${domain}" to Firebase Console > Authentication > Settings > Authorized Domains.`;
+    resolution = `The domain "${domain}" is not authorized in Firebase. Add "${domain}" (and your Vercel domain e.g. *.vercel.app) to Firebase Console > Authentication > Settings > Authorized Domains.`;
   } else if (code === 'auth/operation-not-allowed') {
     resolution = `Google Sign-In is not enabled. Go to Firebase Console > Authentication > Sign-in method > Enable Google.`;
   } else if (code === 'auth/popup-blocked') {
@@ -64,6 +66,7 @@ export function parseFirebaseAuthError(error: unknown): GoogleAuthErrorInfo {
     domain,
     resolution,
     consoleUrl,
+    gcpConsoleUrl,
   };
 }
 
