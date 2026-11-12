@@ -43,6 +43,14 @@ import {
   DEMO_BENCHMARKS,
   DEMO_NEGOTIATION_THREADS,
 } from '../data/nyagatare.ts';
+import { auth, signInWithGoogle, logOutFromFirebase } from '../lib/firebase.ts';
+import { onAuthStateChanged, User as FirebaseUser } from 'firebase/auth';
+import {
+  saveUserProfileToFirestore,
+  getUserProfileFromFirestore,
+  savePortfolioToFirestore,
+  getUserPortfoliosFromFirestore,
+} from '../lib/firestoreService.ts';
 
 export type DataFilterMode = 'all' | 'user_only' | 'demo_only';
 
@@ -60,6 +68,10 @@ interface AppContextType {
   setRole: (role: UserRole) => void;
   isAuthenticated: boolean;
   setIsAuthenticated: (auth: boolean) => void;
+  firebaseUser: FirebaseUser | null;
+  isGoogleAuthenticated: boolean;
+  signInWithGoogleAccount: () => Promise<{ success: boolean; error?: string }>;
+  signOutGoogleAccount: () => Promise<void>;
   activePortfolio: UserPortfolio | null;
   userPortfolios: UserPortfolio[];
   isAgentWorkspace: boolean;
@@ -214,6 +226,84 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return false;
     }
   });
+
+  // Google Firebase Authentication State
+  const [firebaseUser, setFirebaseUser] = useState<FirebaseUser | null>(() => auth.currentUser);
+  const [isGoogleAuthenticated, setIsGoogleAuthenticated] = useState<boolean>(() => Boolean(auth.currentUser));
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      if (user) {
+        setFirebaseUser(user);
+        setIsGoogleAuthenticated(true);
+        setIsAuthenticated(true);
+
+        try {
+          // Attempt to retrieve existing profile from Firestore
+          let profile = await getUserProfileFromFirestore(user.uid);
+          if (!profile) {
+            const newProfile: UserProfile = {
+              id: user.uid,
+              fullName: user.displayName || user.email?.split('@')[0] || 'AgriBridge Member',
+              email: user.email || '',
+              phoneNumber: user.phoneNumber || '+250 788 123 456',
+              role: 'farmer',
+              category: 'seller',
+              district: 'Nyagatare',
+              sector: 'Mimuri',
+              isVerified: true,
+              isDemo: false,
+              photoURL: user.photoURL || undefined,
+              activePortfolioId: `PF-RW-${user.uid.slice(0, 6).toUpperCase()}`,
+              createdAt: new Date().toISOString(),
+            };
+            profile = newProfile;
+            await saveUserProfileToFirestore(newProfile);
+          }
+
+          setCurrentUser(profile);
+
+          // Sync or create associated portfolio in Firestore
+          const portfolios = await getUserPortfoliosFromFirestore(user.uid);
+          if (portfolios && portfolios.length > 0) {
+            setUserPortfolios((prev) => [
+              ...portfolios,
+              ...prev.filter((p) => !portfolios.some((np) => np.id === p.id)),
+            ]);
+            setActivePortfolioId(portfolios[0].id);
+          } else {
+            const personalPortfolio: UserPortfolio = {
+              id: profile.activePortfolioId || `PF-RW-${user.uid.slice(0, 6).toUpperCase()}`,
+              userId: user.uid,
+              name: `${profile.fullName}'s Portfolio`,
+              role: profile.role || 'farmer',
+              category: profile.category || 'seller',
+              district: profile.district,
+              sector: profile.sector,
+              isPrimary: true,
+              createdAt: new Date().toISOString(),
+            };
+            await savePortfolioToFirestore(personalPortfolio);
+            setUserPortfolios((prev) => [personalPortfolio, ...prev]);
+            setActivePortfolioId(personalPortfolio.id);
+          }
+        } catch (syncErr) {
+          console.warn('Firestore profile sync note:', syncErr);
+        }
+
+        showToast(
+          'success',
+          'Google Account Connected',
+          `Signed in as ${user.displayName || user.email}.`
+        );
+      } else {
+        setFirebaseUser(null);
+        setIsGoogleAuthenticated(false);
+      }
+    });
+
+    return () => unsubscribe();
+  }, []);
 
   const [isAgentWorkspace, setIsAgentWorkspace] = useState<boolean>(() => {
     try {
@@ -995,10 +1085,40 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     showToast('info', `Exploring as ${match.role.toUpperCase()}`, `Workspace loaded: ${match.fullName}`);
   };
 
+  const signInWithGoogleAccount = async (): Promise<{ success: boolean; error?: string }> => {
+    try {
+      await signInWithGoogle();
+      setIsAuthModalOpen(false);
+      return { success: true };
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      showToast('warning', 'Google Sign-In Cancelled', msg);
+      return { success: false, error: msg };
+    }
+  };
+
+  const signOutGoogleAccount = async (): Promise<void> => {
+    try {
+      await logOutFromFirebase();
+      setFirebaseUser(null);
+      setIsGoogleAuthenticated(false);
+      setIsAuthenticated(false);
+      localStorage.removeItem(STORAGE_KEYS.AUTH_SESSION);
+      showToast('info', 'Signed Out', 'You have been disconnected from your Google account.');
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
   const logout = () => {
     setIsAuthenticated(false);
     setIsAgentWorkspace(false);
     localStorage.removeItem(STORAGE_KEYS.AUTH_SESSION);
+    if (auth.currentUser) {
+      logOutFromFirebase().catch(() => {});
+    }
+    setFirebaseUser(null);
+    setIsGoogleAuthenticated(false);
     showToast('info', 'Signed Out', 'You have returned to the AgriBridge Welcome screen.');
   };
 
@@ -1749,6 +1869,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setRole,
         isAuthenticated,
         setIsAuthenticated,
+        firebaseUser,
+        isGoogleAuthenticated,
+        signInWithGoogleAccount,
+        signOutGoogleAccount,
         activePortfolio,
         userPortfolios,
         isAgentWorkspace,

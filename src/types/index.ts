@@ -109,6 +109,9 @@ export interface UserProfile {
   cooperativeName?: string;
   isVerified: boolean;
   isDemo: boolean;
+  photoURL?: string;
+  avatarUrl?: string;
+  createdAt?: string;
   savedCredentials?: boolean;
   savedAt?: string;
   activePortfolioId?: string;

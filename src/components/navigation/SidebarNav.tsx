@@ -44,7 +44,7 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({
   onOpenNewListingModal,
 }) => {
   const { t, language } = useLanguage();
-  const { role, currentUser, setIsAuthModalOpen } = useApp();
+  const { role, currentUser, setIsAuthModalOpen, firebaseUser, isGoogleAuthenticated } = useApp();
 
   // Desktop collapsible state (persisted)
   const [isCollapsed, setIsCollapsed] = useState<boolean>(() => {
@@ -236,16 +236,40 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({
           }`}
           title="Account profile and demo switch"
         >
-          <div className="w-8 h-8 rounded-lg bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 flex items-center justify-center font-bold text-xs shrink-0">
-            {currentUser?.fullName?.[0] || 'U'}
+          <div className="relative shrink-0">
+            {firebaseUser?.photoURL ? (
+              <img
+                src={firebaseUser.photoURL}
+                alt={currentUser?.fullName || 'Google Profile'}
+                className="w-8 h-8 rounded-lg object-cover ring-1 ring-emerald-500 shadow-2xs"
+                referrerPolicy="no-referrer"
+              />
+            ) : (
+              <div className="w-8 h-8 rounded-lg bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 flex items-center justify-center font-bold text-xs">
+                {currentUser?.fullName?.[0] || 'U'}
+              </div>
+            )}
+            {isGoogleAuthenticated && (
+              <span
+                className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-emerald-500 ring-2 ring-white dark:ring-stone-900"
+                title="Verified Google Account"
+              />
+            )}
           </div>
           {!isCollapsed && (
             <div className="truncate flex-1">
-              <div className="text-xs font-bold text-stone-900 dark:text-stone-100 truncate">
-                {currentUser?.fullName ? currentUser.fullName.split(' ')[0] : 'Guest'}
+              <div className="flex items-center gap-1.5">
+                <span className="text-xs font-bold text-stone-900 dark:text-stone-100 truncate">
+                  {currentUser?.fullName ? currentUser.fullName.split(' ')[0] : 'Guest'}
+                </span>
+                {isGoogleAuthenticated && (
+                  <span className="text-[9px] font-bold px-1.5 py-0.2 rounded bg-emerald-100 dark:bg-emerald-900/60 text-emerald-800 dark:text-emerald-300 shrink-0">
+                    Google
+                  </span>
+                )}
               </div>
               <div className="text-[10px] text-stone-500 capitalize truncate">
-                {currentUser?.role || 'Farmer'} · {currentUser?.sector || 'Nyagatare'}
+                {currentUser?.role || 'Farmer'} &middot; {currentUser?.sector || 'Nyagatare'}
               </div>
             </div>
           )}

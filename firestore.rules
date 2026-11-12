@@ -1,0 +1,136 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Global Safety Net: Default-deny all unmapped paths
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // ==========================================
+    // REUSABLE GLOBAL HELPERS
+    // ==========================================
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() > 0 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && (
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid)) ||
+        (request.auth.token.email != null && request.auth.token.email.matches('.*@agribridge\\.rw$'))
+      );
+    }
+
+    // ==========================================
+    // ENTITY VALIDATION BLUEPRINTS
+    // ==========================================
+    function isValidUser(data) {
+      return data.id is string && data.id == request.auth.uid &&
+             data.fullName is string && data.fullName.size() >= 2 && data.fullName.size() <= 100 &&
+             data.email is string && data.email.size() <= 120 &&
+             data.role in ['farmer', 'buyer', 'agent', 'supplier', 'expert', 'admin'];
+    }
+
+    function isValidPortfolio(data) {
+      return data.id is string && isValidId(data.id) &&
+             data.userId is string && data.userId == request.auth.uid &&
+             data.portfolioName is string && data.portfolioName.size() >= 2 && data.portfolioName.size() <= 120;
+    }
+
+    function isValidProduceListing(data) {
+      return data.id is string && isValidId(data.id) &&
+             data.farmerId is string && data.farmerId == request.auth.uid &&
+             data.cropName is string && data.cropName.size() > 0 && data.cropName.size() <= 100 &&
+             data.quantityAvailableKg is number && data.quantityAvailableKg >= 0 &&
+             data.unitPriceRwf is number && data.unitPriceRwf >= 0;
+    }
+
+    function isValidOrder(data) {
+      return data.id is string && isValidId(data.id) &&
+             data.buyerId is string &&
+             data.farmerId is string &&
+             data.quantityKg is number && data.quantityKg > 0 &&
+             data.totalAmountRwf is number && data.totalAmountRwf >= 0;
+    }
+
+    function isValidNegotiation(data) {
+      return data.id is string && isValidId(data.id) &&
+             data.buyerId is string &&
+             data.farmerId is string &&
+             data.cropName is string && data.cropName.size() <= 100;
+    }
+
+    // ==========================================
+    // COLLECTION ACCESS RULES
+    // ==========================================
+
+    // Users Collection (PII Isolated: only owner or admin can read/write)
+    match /users/{userId} {
+      allow get: if isOwner(userId) || isAdmin();
+      allow list: if isSignedIn() && (resource.data.id == request.auth.uid || isAdmin());
+      allow create: if isSignedIn() && isValidId(userId) && userId == request.auth.uid && isValidUser(incoming());
+      allow update: if isSignedIn() && isValidId(userId) && isOwner(userId) && isValidUser(incoming()) && incoming().id == existing().id;
+      allow delete: if isAdmin();
+    }
+
+    // Portfolios Collection
+    match /portfolios/{portfolioId} {
+      allow get: if isSignedIn();
+      allow list: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow create: if isSignedIn() && isValidId(portfolioId) && request.resource.data.userId == request.auth.uid && isValidPortfolio(incoming());
+      allow update: if isSignedIn() && isValidId(portfolioId) && resource.data.userId == request.auth.uid && isValidPortfolio(incoming());
+      allow delete: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+    }
+
+    // Produce Listings Collection (Public catalog reads, farmer-only writes)
+    match /produce_listings/{listingId} {
+      allow get, list: if true;
+      allow create: if isSignedIn() && isValidId(listingId) && request.resource.data.farmerId == request.auth.uid && isValidProduceListing(incoming());
+      allow update: if isSignedIn() && isValidId(listingId) && (resource.data.farmerId == request.auth.uid || isAdmin()) && isValidProduceListing(incoming());
+      allow delete: if isSignedIn() && (resource.data.farmerId == request.auth.uid || isAdmin());
+    }
+
+    // Orders Collection (Accessible only by designated buyer, seller farmer, or admin)
+    match /orders/{orderId} {
+      allow get: if isSignedIn() && (resource.data.buyerId == request.auth.uid || resource.data.farmerId == request.auth.uid || isAdmin());
+      allow list: if isSignedIn() && (resource.data.buyerId == request.auth.uid || resource.data.farmerId == request.auth.uid || isAdmin());
+      allow create: if isSignedIn() && isValidId(orderId) && request.resource.data.buyerId == request.auth.uid && isValidOrder(incoming());
+      allow update: if isSignedIn() && isValidId(orderId) && (resource.data.buyerId == request.auth.uid || resource.data.farmerId == request.auth.uid || isAdmin()) && isValidOrder(incoming());
+      allow delete: if isAdmin();
+    }
+
+    // Price Negotiations Collection (Restricted strictly to negotiating parties)
+    match /negotiations/{threadId} {
+      allow get: if isSignedIn() && (resource.data.buyerId == request.auth.uid || resource.data.farmerId == request.auth.uid || isAdmin());
+      allow list: if isSignedIn() && (resource.data.buyerId == request.auth.uid || resource.data.farmerId == request.auth.uid || isAdmin());
+      allow create: if isSignedIn() && isValidId(threadId) && (request.resource.data.buyerId == request.auth.uid || request.resource.data.farmerId == request.auth.uid) && isValidNegotiation(incoming());
+      allow update: if isSignedIn() && isValidId(threadId) && (resource.data.buyerId == request.auth.uid || resource.data.farmerId == request.auth.uid || isAdmin()) && isValidNegotiation(incoming());
+      allow delete: if isAdmin();
+
+      // Nested Messages
+      match /messages/{messageId} {
+        allow read, write: if isSignedIn() && (
+          get(/databases/$(database)/documents/negotiations/$(threadId)).data.buyerId == request.auth.uid ||
+          get(/databases/$(database)/documents/negotiations/$(threadId)).data.farmerId == request.auth.uid ||
+          isAdmin()
+        );
+      }
+    }
+  }
+}

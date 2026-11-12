@@ -1,0 +1,377 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "User profile records and authentication identity metadata",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Firebase Authentication user UID"
+        },
+        "fullName": {
+          "type": "string",
+          "description": "User display name or full legal name",
+          "maxLength": 100
+        },
+        "email": {
+          "type": "string",
+          "format": "email",
+          "description": "User Google account or contact email address"
+        },
+        "phoneNumber": {
+          "type": "string",
+          "description": "Mobile phone number used for contact and mobile money",
+          "maxLength": 30
+        },
+        "role": {
+          "type": "string",
+          "enum": ["farmer", "buyer", "agent", "supplier", "expert", "admin"],
+          "description": "Operational marketplace role of the user"
+        },
+        "category": {
+          "type": "string",
+          "enum": ["seller", "buyer", "supplier", "agent", "expert", "admin"],
+          "description": "User trade category"
+        },
+        "district": {
+          "type": "string",
+          "description": "Rwanda district location",
+          "maxLength": 50
+        },
+        "sector": {
+          "type": "string",
+          "description": "Rwanda sector location",
+          "maxLength": 50
+        },
+        "activePortfolioId": {
+          "type": "string",
+          "description": "Currently active agricultural portfolio ID",
+          "maxLength": 64
+        },
+        "photoURL": {
+          "type": "string",
+          "description": "User avatar image URL from Google account"
+        },
+        "isVerified": {
+          "type": "boolean",
+          "description": "Verification status of user"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Account registration timestamp"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Last profile update timestamp"
+        }
+      },
+      "required": ["id", "fullName", "email", "role", "createdAt"]
+    },
+    "Portfolio": {
+      "title": "Portfolio",
+      "description": "Agricultural portfolio containing farms, plots, and commercial produce",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique portfolio reference identifier"
+        },
+        "userId": {
+          "type": "string",
+          "description": "Owner user UID"
+        },
+        "portfolioName": {
+          "type": "string",
+          "description": "Commercial or farm enterprise name",
+          "maxLength": 120
+        },
+        "category": {
+          "type": "string",
+          "description": "Portfolio category (e.g. Farmer, Buyer, Cooperative)"
+        },
+        "registrationNumber": {
+          "type": "string",
+          "description": "Government or cooperative registration code",
+          "maxLength": 64
+        },
+        "district": {
+          "type": "string",
+          "description": "District in Rwanda",
+          "maxLength": 50
+        },
+        "sector": {
+          "type": "string",
+          "description": "Sector in Rwanda",
+          "maxLength": 50
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Creation timestamp"
+        }
+      },
+      "required": ["id", "userId", "portfolioName", "createdAt"]
+    },
+    "ProduceListing": {
+      "title": "ProduceListing",
+      "description": "Agricultural produce batch listed for sale",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique listing identifier"
+        },
+        "farmerId": {
+          "type": "string",
+          "description": "Producer user UID or farmer ID"
+        },
+        "farmerName": {
+          "type": "string",
+          "description": "Full name of producer",
+          "maxLength": 100
+        },
+        "farmerPhone": {
+          "type": "string",
+          "description": "Producer phone number",
+          "maxLength": 30
+        },
+        "cropType": {
+          "type": "string",
+          "description": "Crop category classification",
+          "maxLength": 50
+        },
+        "cropName": {
+          "type": "string",
+          "description": "Specific crop cultivar name",
+          "maxLength": 100
+        },
+        "variety": {
+          "type": "string",
+          "description": "Crop seed variety",
+          "maxLength": 80
+        },
+        "quantityAvailableKg": {
+          "type": "number",
+          "description": "Available harvest quantity in kilograms"
+        },
+        "unitPriceRwf": {
+          "type": "number",
+          "description": "Asking farmgate price per kg in RWF"
+        },
+        "minimumOrderKg": {
+          "type": "number",
+          "description": "Minimum order quantity in kg"
+        },
+        "district": {
+          "type": "string",
+          "description": "District of origin",
+          "maxLength": 50
+        },
+        "sector": {
+          "type": "string",
+          "description": "Sector of origin",
+          "maxLength": 50
+        },
+        "status": {
+          "type": "string",
+          "enum": ["active", "under_negotiation", "sold_out"],
+          "description": "Listing status"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Publication timestamp"
+        }
+      },
+      "required": ["id", "farmerId", "farmerName", "cropName", "quantityAvailableKg", "unitPriceRwf", "createdAt"]
+    },
+    "Order": {
+      "title": "Order",
+      "description": "Confirmed produce purchase contract",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique order reference"
+        },
+        "buyerId": {
+          "type": "string",
+          "description": "Buyer user UID"
+        },
+        "buyerName": {
+          "type": "string",
+          "description": "Buyer contact name",
+          "maxLength": 100
+        },
+        "buyerPhone": {
+          "type": "string",
+          "description": "Buyer mobile phone",
+          "maxLength": 30
+        },
+        "farmerId": {
+          "type": "string",
+          "description": "Farmer user UID"
+        },
+        "farmerName": {
+          "type": "string",
+          "description": "Farmer name",
+          "maxLength": 100
+        },
+        "cropName": {
+          "type": "string",
+          "description": "Purchased crop name",
+          "maxLength": 100
+        },
+        "variety": {
+          "type": "string",
+          "description": "Crop variety",
+          "maxLength": 80
+        },
+        "quantityKg": {
+          "type": "number",
+          "description": "Ordered volume in kg"
+        },
+        "pricePerKgRwf": {
+          "type": "number",
+          "description": "Agreed price per kg in RWF"
+        },
+        "totalAmountRwf": {
+          "type": "number",
+          "description": "Total order amount in RWF"
+        },
+        "commissionAmountRwf": {
+          "type": "number",
+          "description": "2.5% platform fee in RWF"
+        },
+        "commissionStatus": {
+          "type": "string",
+          "description": "Status of commission payment"
+        },
+        "status": {
+          "type": "string",
+          "description": "Fulfillment status of order"
+        },
+        "paymentMethod": {
+          "type": "string",
+          "description": "Payment channel used"
+        },
+        "paymentStatus": {
+          "type": "string",
+          "description": "Payment settlement status"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Order creation timestamp"
+        }
+      },
+      "required": ["id", "buyerId", "buyerName", "farmerId", "farmerName", "quantityKg", "totalAmountRwf", "createdAt"]
+    },
+    "NegotiationThread": {
+      "title": "NegotiationThread",
+      "description": "Direct price negotiation conversation between buyer and farmer",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique negotiation thread ID"
+        },
+        "listingId": {
+          "type": "string",
+          "description": "Related produce listing ID"
+        },
+        "cropName": {
+          "type": "string",
+          "description": "Crop name under negotiation",
+          "maxLength": 100
+        },
+        "variety": {
+          "type": "string",
+          "description": "Variety of produce",
+          "maxLength": 80
+        },
+        "listingUnitPriceRwf": {
+          "type": "number",
+          "description": "Original farmgate asking price"
+        },
+        "quantityAvailableKg": {
+          "type": "number",
+          "description": "Available stock quantity in kg"
+        },
+        "farmerId": {
+          "type": "string",
+          "description": "Seller farmer UID"
+        },
+        "farmerName": {
+          "type": "string",
+          "description": "Farmer name",
+          "maxLength": 100
+        },
+        "farmerPhone": {
+          "type": "string",
+          "description": "Farmer telephone",
+          "maxLength": 30
+        },
+        "buyerId": {
+          "type": "string",
+          "description": "Negotiating buyer UID"
+        },
+        "buyerName": {
+          "type": "string",
+          "description": "Buyer name",
+          "maxLength": 100
+        },
+        "buyerPhone": {
+          "type": "string",
+          "description": "Buyer telephone",
+          "maxLength": 30
+        },
+        "status": {
+          "type": "string",
+          "enum": ["negotiating", "price_agreed", "order_placed", "order_created", "archived"],
+          "description": "Current status of deal negotiation"
+        },
+        "currentAgreedPricePerKgRwf": {
+          "type": "number",
+          "description": "Latest agreed or proposed price in RWF/kg"
+        },
+        "lastMessageTimestamp": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Timestamp of most recent activity"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Negotiation opening timestamp"
+        }
+      },
+      "required": ["id", "listingId", "cropName", "farmerId", "farmerName", "buyerId", "buyerName", "status", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "User profile records and authentication identity metadata"
+    },
+    "/portfolios/{portfolioId}": {
+      "schema": "Portfolio",
+      "description": "Agricultural portfolios and holdings"
+    },
+    "/produce_listings/{listingId}": {
+      "schema": "ProduceListing",
+      "description": "Marketplace produce harvest listings"
+    },
+    "/orders/{orderId}": {
+      "schema": "Order",
+      "description": "Marketplace orders and transaction records"
+    },
+    "/negotiations/{threadId}": {
+      "schema": "NegotiationThread",
+      "description": "Direct buyer-farmer price negotiation threads"
+    }
+  }
+}
